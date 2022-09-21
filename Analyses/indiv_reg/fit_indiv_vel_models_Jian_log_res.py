@@ -33,7 +33,7 @@ import cmdstanpy
 z_star = 2.5
 
 #regression info
-fname_stan_model = '../stan_lib/jian_fun_indiv_reg_linear_res.stan'
+fname_stan_model = '../stan_lib/jian_fun_indiv_reg_log_res.stan'
 #iteration samples
 n_iter_warmup   = 5000
 n_iter_sampling = 5000
@@ -50,6 +50,7 @@ fname_flatfile = '../../Data/vel_profiles/all_velocity_profles.csv'
 # fname_flatfile = '../../Data/vel_profiles/Jian_velocity_profles.csv'
 
 #flag truncate
+# flag_trunc_z1 = False
 flag_trunc_z1 = True
 
 #output filename
@@ -57,7 +58,7 @@ flag_trunc_z1 = True
 # fname_out_main = 'Jian'
 fname_out_main = 'all_trunc'
 #output directory
-dir_out = '../../Data/indiv_reg/bayesian_fit/' + fname_out_main + '/'
+dir_out = '../../Data/indiv_reg/bayesian_fit/log/' + fname_out_main + '/'
 dir_fig = dir_out + 'figures/'
 
 #%% Load Data
@@ -73,6 +74,10 @@ if flag_trunc_z1:
 #create output directory
 pathlib.Path(dir_out).mkdir(parents=True, exist_ok=True) 
 pathlib.Path(dir_fig).mkdir(parents=True, exist_ok=True) 
+
+#unique datasets
+ds_ids, ds_idx = np.unique(df_velprofs.DSID, return_index=True)
+ds_names       = df_velprofs.DSName.iloc[ds_idx].values
 
 #velocity profile ids
 vel_ids, vel_idx = np.unique(df_velprofs[['DSID','VelID']].values, axis=0, return_index=True)
@@ -98,11 +103,15 @@ for k, v_id in enumerate(vel_ids):
     stan_data = {'N':      len(df_vel),
                  'z_star': z_star,
                  'Z':      df_vel.Depth_MPt.values,
-                 'Y':      df_vel.Vs.values,
+                 'Y':      np.log(df_vel.Vs.values),
                 }
     #write as json file
     fname_stan_data = dir_out + fname_vel + '_stan_data' + '.json'
-    cmdstanpy.utils.jsondump(fname_stan_data, stan_data)
+    try:
+        cmdstanpy.utils.jsondump(fname_stan_data, stan_data)
+    except AttributeError:
+        cmdstanpy.utils.write_stan_json(fname_stan_data, stan_data)
+        
 
     # run stan
     # ---   ---   ---   ---
@@ -118,7 +127,7 @@ for k, v_id in enumerate(vel_ids):
     # process regression output
     # ---   ---   ---   ---
     #parameter names 
-    names_param= ['VS0','k','n','sigma']
+    names_param= ['logVs0','Vs0','k','n','sigma']
 
     #extract parameter posterior samples
     stan_posterior = np.stack([stan_fit.stan_variable(n_p) for n_p in names_param], axis=1)
@@ -135,18 +144,19 @@ for k, v_id in enumerate(vel_ids):
     df_stan_param.to_csv(dir_out + fname_vel + '_stan_parameters' + '.csv', index=True)
     
     #mean parameters
-    param_vs0 = df_stan_param.loc['mean','VS0']
-    param_k   = df_stan_param.loc['mean','k']
-    param_n   = df_stan_param.loc['mean','n']
-    param_sig = df_stan_param.loc['mean','sigma']
-    df_param_all.loc[k,['VS0','k','n','sigma']] = [param_vs0,param_k,param_n,param_sig]
+    param_log_vs0   = df_stan_param.loc['mean','logVs0']
+    param_vs0       = df_stan_param.loc['mean','Vs0']
+    param_k         = df_stan_param.loc['mean','k']
+    param_n         = df_stan_param.loc['mean','n']
+    param_sig       = df_stan_param.loc['mean','sigma']
+    df_param_all.loc[k,['logVs0','Vs0','k','n','sigma']] = [param_log_vs0,param_vs0,param_k,param_n,param_sig]
     
     #mean model and residuals
     vs_model = param_vs0 * np.maximum(1, (1 + param_k*(df_vel.Depth.values-z_star))**param_n )
     df_vel.loc[df_vel.index,'Vs_model'] = vs_model 
-    df_vel.loc[df_vel.index,'res']      = df_vel.Vs.values - vs_model 
+    df_vel.loc[df_vel.index,'res']      = np.log(df_vel.Vs.values) - np.log(vs_model)
     df_velprofs.loc[df_vel.index,'Vs_model'] = vs_model 
-    df_velprofs.loc[df_vel.index,'res']      = df_vel.Vs.values - vs_model 
+    df_velprofs.loc[df_vel.index,'res']      = np.log(df_vel.Vs.values) - np.log(vs_model)
 
     # figures
     # ---   ---   ---   ---
@@ -179,19 +189,40 @@ for f_j in fname_json: os.remove(dir_out + f_j)
 # output
 # ---   ---   ---   ---
 #regression model and residuals
-df_velprofs.to_csv(dir_out + fname_out_main + '_all' + '_stan_residuals' + '.csv', index=True)
+df_velprofs.to_csv(dir_out + fname_out_main + '_stan_residuals' + '.csv', index=True)
 #regression parameters
-df_param_all.to_csv(dir_out + fname_out_main + '_all' + '_stan_parameters' + '.csv', index=True)
+df_param_all.to_csv(dir_out + fname_out_main + '_stan_parameters' + '.csv', index=True)
 
-print('Standard Dev: %.1f'%df_velprofs.res.std())
+print('Residuals Mean: %.2f'%df_velprofs.res.mean())
+print('Residuals Std Dev: %.2f'%df_velprofs.res.std())
 
 # figures
 # ---   ---   ---   ---
 # cmpare model parameters versus vs30
+#log of Vs0
+fname_fig = (fname_out_main + '_param_' + 'param_logVs0').replace(' ','_')
+fig, ax = plt.subplots(figsize = (10,10))
+#ploting
+for d_id, d_name in zip(ds_ids, ds_names):
+    i_ds = df_param_all.DSID.values == d_id
+    hl = ax.plot(df_param_all.loc[i_ds,'Vs30'], df_param_all.loc[i_ds,'logVs0'], 'o', label=d_name)
+#edit properties
+ax.set_xlabel('$V_{S30}$ (m/sec)',  fontsize=30)
+ax.set_ylabel('$V_{S0}$ (m/sec)',  fontsize=30)
+ax.grid(which='both')
+ax.legend(loc='upper right', fontsize=30)
+ax.tick_params(axis='x', labelsize=25)
+ax.tick_params(axis='y', labelsize=25)
+fig.tight_layout()
+fig.savefig( dir_fig + fname_fig + '.png' )
+
 #Vs0
 fname_fig = (fname_out_main + '_param_' + 'param_Vs0').replace(' ','_')
 fig, ax = plt.subplots(figsize = (10,10))
-hl1 = ax.plot(df_param_all.Vs30, df_param_all.VS0, 'o', label='Linear residuals')
+#ploting
+for d_id, d_name in zip(ds_ids, ds_names):
+    i_ds = df_param_all.DSID.values == d_id
+    hl = ax.plot(df_param_all.loc[i_ds,'Vs30'], df_param_all.loc[i_ds,'Vs0'], 'o', label=d_name)
 #edit properties
 ax.set_xlabel('$V_{S30}$ (m/sec)',  fontsize=30)
 ax.set_ylabel('$V_{S0}$ (m/sec)',  fontsize=30)
@@ -203,9 +234,12 @@ fig.tight_layout()
 fig.savefig( dir_fig + fname_fig + '.png' )
 
 #k
-fname_fig = (fname_out_main + '_param_' + 'param_k').replace(' ','_')
+fname_fig = (fname_out_main + 'param_k').replace(' ','_')
 fig, ax = plt.subplots(figsize = (10,10))
-hl1 = ax.plot(df_param_all.Vs30, df_param_all.k, 'o', label='Linear residuals')
+#ploting
+for d_id, d_name in zip(ds_ids, ds_names):
+    i_ds = df_param_all.DSID.values == d_id
+    hl = ax.plot(df_param_all.loc[i_ds,'Vs30'], df_param_all.loc[i_ds,'k'], 'o', label=d_name)
 #edit properties
 ax.set_xlabel('$V_{S30}$ (m/sec)',  fontsize=30)
 ax.set_ylabel('$k$',  fontsize=30)
@@ -217,9 +251,12 @@ fig.tight_layout()
 fig.savefig( dir_fig + fname_fig + '.png' )
 
 #n
-fname_fig = (fname_out_main + '_param_' + 'param_n').replace(' ','_')
+fname_fig = (fname_out_main + 'param_n').replace(' ','_')
 fig, ax = plt.subplots(figsize = (10,10))
-hl1 = ax.plot(df_param_all.Vs30, df_param_all.n, 'o', label='Linear residuals')
+#ploting
+for d_id, d_name in zip(ds_ids, ds_names):
+    i_ds = df_param_all.DSID.values == d_id
+    hl = ax.plot(df_param_all.loc[i_ds,'Vs30'], df_param_all.loc[i_ds,'n'], 'o', label=d_name)
 #edit properties
 ax.set_xlabel('$V_{S30}$ (m/sec)',  fontsize=30)
 ax.set_ylabel('$n$',  fontsize=30)
@@ -231,14 +268,34 @@ fig.tight_layout()
 fig.savefig( dir_fig + fname_fig + '.png' )
 
 #sigma
-fname_fig = (fname_out_main + '_param_' + 'param_sig').replace(' ','_')
+fname_fig = (fname_out_main + 'param_sig').replace(' ','_')
 fig, ax = plt.subplots(figsize = (10,10))
-hl1 = ax.plot(df_param_all.Vs30, df_param_all.sigma, 'o', label='Linear residuals')
+#ploting
+for d_id, d_name in zip(ds_ids, ds_names):
+    i_ds = df_param_all.DSID.values == d_id
+    hl = ax.plot(df_param_all.loc[i_ds,'Vs30'], df_param_all.loc[i_ds,'sigma'], 'o', label=d_name)
 #edit properties
 ax.set_xlabel('$V_{S30}$ (m/sec)',  fontsize=30)
-ax.set_ylabel('$\sigma$',  fontsize=30)
+ax.set_ylabel('$\sigma$ (m/sec)',  fontsize=30)
 ax.grid(which='both')
 ax.legend(loc='upper right', fontsize=30)
+ax.tick_params(axis='x', labelsize=25)
+ax.tick_params(axis='y', labelsize=25)
+fig.tight_layout()
+fig.savefig( dir_fig + fname_fig + '.png' )
+
+#residuals
+fname_fig = (fname_out_main + '_residuals_versus_depth').replace(' ','_')
+fig, ax = plt.subplots(figsize = (10,10))
+for d_id, d_name in zip(ds_ids, ds_names):
+    i_ds = df_velprofs.DSID.values == d_id
+    hl = ax.plot(df_velprofs.loc[i_ds,'res'], df_velprofs.loc[i_ds,'Depth'], 'o', label=d_name)
+#edit properties
+ax.invert_yaxis()
+ax.set_xlabel('residuals (log-space)',  fontsize=30)
+ax.set_ylabel('Depth (m)',      fontsize=30)
+ax.grid(which='both')
+ax.legend(loc='lower right', fontsize=30)
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
 fig.tight_layout()
