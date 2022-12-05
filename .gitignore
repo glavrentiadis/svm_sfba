@@ -1,0 +1,9 @@
+#STAN compiled files
+*.hpp
+
+#Python generated folders
+__pycache__
+
+#Jupyer Notebook
+.ipynb_checkpoints
+
