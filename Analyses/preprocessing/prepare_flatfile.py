@@ -25,9 +25,9 @@ import pandas as pd
 def CalcVS30(depth, vel):
     
     #interpolate depths at 1m interval
-    d_array  = np.arange(0,31)
+    d_array  = np.arange(0,30.05,0.05)
     dz_array = np.diff(d_array)
-    vs_array = interp.interp1d(x=depth,y=vel,kind='previous', bounds_error=False, fill_value='extrapolate')(d_array[:-1])
+    vs_array = interp.interp1d(x=depth,y=vel,kind='next', bounds_error=False, fill_value='extrapolate')(d_array[:-1])
 
     #compute Vs30
     t_array = dz_array/vs_array
@@ -65,11 +65,15 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header = True, dsid=np.nan, fi
         vs = df_v.Vs.values
         #skip profiles with nan
         if np.any(np.isnan(vs)):
-            print(f'\tSkipping prof %s ...'%(df_vp_info.dataset))
+            print(f'\tSkipping prof due to unavailable values: %s ...'%(df_vp_info.dataset))
             continue
         #assert top layer depth reported
         assert(np.abs(z[0])<1e-9),'Error. Depths to top of layers should be reported.'
-
+        #assert(np.abs(vs[0]-vs[1])<1e-9),'Error. Inconsistent format. Assumed step function profile.'
+        if not np.abs(vs[0]-vs[1])<1e-9:
+            print(f'\tSkipping prof due to inconsistent format: %s ...'%(df_vp_info.dataset))
+            continue
+        
         #add prof id and name
         df_v.loc[:,'VelID']   = k
         df_v.loc[:,'VelName'] = n_v
@@ -81,10 +85,10 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header = True, dsid=np.nan, fi
         df_v.loc[:,'flag_Z1'] = np.cumsum( vs >= 1000 ) >= 1
         
         #compute layer thickness and mid-point depth
-        df_v.loc[:,'Thk'] = np.append(np.diff(z), 0)
+        df_v.loc[:,'Thk'] = np.append(np.nan, np.diff(z))
         #midpoint depth
         z_mp = np.convolve(z, np.ones(2), "valid")/2
-        df_v.loc[:,'Depth_MPt'] = np.append(z_mp, 0)
+        df_v.loc[:,'Depth_MPt'] = np.append(np.nan, z_mp)
         
         #compute vs30 
         df_v.loc[:,'Vs30'] = CalcVS30(df_v.Depth.values, df_v.Vs.values)
@@ -104,6 +108,19 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header = True, dsid=np.nan, fi
 #%% Define Variables
 ### ======================================
 
+# #Jian profiles
+# dir_velprofs_Jian     = '../../Raw_files/Datasets_20221201/Jian/dataset/'
+# fname_vprof_info_Jian = '../../Raw_files/Datasets_20221201/Jian/Jian.xlsx'
+# filter_vname_Jian     = 'profile_(.*)\.txt'
+# #Boore profiles
+# dir_velprofs_Boore     = '../../Raw_files/Datasets_20221201/Boore/dataset/'
+# fname_vprof_info_Boore = '../../Raw_files/Datasets_20221201/Boore/Boore.xlsx'
+# filter_vname_Boore     = '(.*)\.txt'
+# #VSPDB_Vs_Profiles
+# dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20221201/VSPDB/dataset/'
+# fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20221201/VSPDB/VSPDB.xlsx'
+# filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
+
 #Jian profiles
 dir_velprofs_Jian     = '../../Raw_files/Datasets_20220915/Jian/dataset/'
 fname_vprof_info_Jian = '../../Raw_files/Datasets_20220915/Jian/Jian.xlsx'
@@ -116,6 +133,7 @@ filter_vname_Boore     = '(.*)\.txt'
 dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20220915/VSPDB/dataset/'
 fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20220915/VSPDB/VSPDB.xlsx'
 filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
+
 
 #output directory
 dir_out = '../../Data/vel_profiles/'
