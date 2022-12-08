@@ -36,8 +36,8 @@ model {
   //prior distributions
   k     ~ exponential(0.5);
   n     ~ beta(1.0,3.0);
-  Vs0   ~ lognormal(6.05,0.4);
-  sigma ~ lognormal(-1.20,0.3);
+  Vs0   ~ lognormal(6.05,1.3);
+  sigma ~ lognormal(3.0,0.6);
   
   //evaluate velocity model
   for(i in 1:N){

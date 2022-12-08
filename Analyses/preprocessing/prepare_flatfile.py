@@ -108,35 +108,54 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header = True, dsid=np.nan, fi
 #%% Define Variables
 ### ======================================
 
+# Dataset 09/15/22
+# ---   ---   ---   ---
 # #Jian profiles
-# dir_velprofs_Jian     = '../../Raw_files/Datasets_20221201/Jian/dataset/'
-# fname_vprof_info_Jian = '../../Raw_files/Datasets_20221201/Jian/Jian.xlsx'
+# dir_velprofs_Jian     = '../../Raw_files/Datasets_20220915/Jian/dataset/'
+# fname_vprof_info_Jian = '../../Raw_files/Datasets_20220915/Jian/Jian.xlsx'
 # filter_vname_Jian     = 'profile_(.*)\.txt'
 # #Boore profiles
-# dir_velprofs_Boore     = '../../Raw_files/Datasets_20221201/Boore/dataset/'
-# fname_vprof_info_Boore = '../../Raw_files/Datasets_20221201/Boore/Boore.xlsx'
+# dir_velprofs_Boore     = '../../Raw_files/Datasets_20220915/Boore/dataset/'
+# fname_vprof_info_Boore = '../../Raw_files/Datasets_20220915/Boore/Boore.xlsx'
 # filter_vname_Boore     = '(.*)\.txt'
 # #VSPDB_Vs_Profiles
-# dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20221201/VSPDB/dataset/'
-# fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20221201/VSPDB/VSPDB.xlsx'
+# dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20220915/VSPDB/dataset/'
+# fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20220915/VSPDB/VSPDB.xlsx'
 # filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
 
+# Dataset 12/01/22
+# ---   ---   ---   ---
 #Jian profiles
-dir_velprofs_Jian     = '../../Raw_files/Datasets_20220915/Jian/dataset/'
-fname_vprof_info_Jian = '../../Raw_files/Datasets_20220915/Jian/Jian.xlsx'
+dir_velprofs_Jian     = '../../Raw_files/Datasets_20221201/Jian/dataset/'
+fname_vprof_info_Jian = '../../Raw_files/Datasets_20221201/Jian/Jian.xlsx'
 filter_vname_Jian     = 'profile_(.*)\.txt'
 #Boore profiles
-dir_velprofs_Boore     = '../../Raw_files/Datasets_20220915/Boore/dataset/'
-fname_vprof_info_Boore = '../../Raw_files/Datasets_20220915/Boore/Boore.xlsx'
+dir_velprofs_Boore     = '../../Raw_files/Datasets_20221201/Boore/dataset/'
+fname_vprof_info_Boore = '../../Raw_files/Datasets_20221201/Boore/Boore.xlsx'
 filter_vname_Boore     = '(.*)\.txt'
 #VSPDB_Vs_Profiles
-dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20220915/VSPDB/dataset/'
-fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20220915/VSPDB/VSPDB.xlsx'
+dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20221201/VSPDB/dataset/'
+fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20221201/VSPDB/VSPDB.xlsx'
 filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
 
+# # Dataset 12/05/22
+# # ---   ---   ---   ---
+# #Jian profiles
+# dir_velprofs_Jian     = '../../Raw_files/Datasets_20221205/Jian/dataset/'
+# fname_vprof_info_Jian = '../../Raw_files/Datasets_20221205/Jian/Jian.xlsx'
+# filter_vname_Jian     = 'profile_(.*)\.txt'
+# #Boore profiles
+# dir_velprofs_Boore     = '../../Raw_files/Datasets_20221205/Boore/dataset/'
+# fname_vprof_info_Boore = '../../Raw_files/Datasets_20221205/Boore/Boore.xlsx'
+# filter_vname_Boore     = '(.*)\.txt'
+# #VSPDB_Vs_Profiles
+# dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20221205/VSPDB/dataset/'
+# fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20221205/VSPDB/VSPDB.xlsx'
+# filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
 
 #output directory
-dir_out = '../../Data/vel_profiles/'
+# dir_out = '../../Data/vel_profiles/'
+dir_out = '../../Data/vel_profiles_dataset2/'
 
 #%% Load Data
 ### ======================================

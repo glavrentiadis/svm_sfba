@@ -437,7 +437,7 @@ fig.savefig( dir_fig + fname_fig + '.png' )
 #within-profile residuals versus depth (proposed and orignal model)
 fname_fig = (fname_out_main + '_withinprof_residuals_versus_depth_comparison').replace(' ','_')
 fig, ax = plt.subplots(figsize = (10,10))
-hl = ax.plot(df_predict_summary.loc[:,'res_tot'], df_predict_summary.loc[:,'Depth_MPt'],  'o', markersize=4, label='Proposed Model')
+hl = ax.plot(df_predict_summary.loc[:,'res_dW'], df_predict_summary.loc[:,'Depth_MPt'],  'o', markersize=4, label='Proposed Model')
 hl = ax.plot(df_predict_summary.loc[:,'res_orig'], df_predict_summary.loc[:,'Depth_MPt'], 'o', label='Shi and Asimaki, 2018', zorder=1)
 #edit properties
 ax.set_xlabel('within prof. residuals',   fontsize=30)
@@ -650,9 +650,9 @@ for k, v_id_dsid in enumerate(vel_id_dsid):
     param_k      = np.exp( r1_new )
     param_n      = 1 + s3_new * sigmoid((np.log(vs30)-s1_new)*s2_new);
     param_a      =-1/param_n
-    param_vs0    = (param_k*(param_a+1)*z_star + (1+param_k*(30-z_star))**(param_a+1) - 1) / (30*(param_a+1)*param_k) * vs30
+    param_vs0    = (param_k*(param_a+1)*z_star    + (1+param_k*(30-z_star))**(param_a+1) - 1)    / (30*(param_a+1)*param_k) * vs30
     param_kdBr   = np.exp( r1_new + dB_r_new[k] )
-    param_vs0dBr = (param_k*(param_a+1)*z_star + (1+param_k*(30-z_star))**(param_a+1) - 1) / (30*(param_a+1)*param_k) * vs30
+    param_vs0dBr = (param_kdBr*(param_a+1)*z_star + (1+param_kdBr*(30-z_star))**(param_a+1) - 1) / (30*(param_a+1)*param_kdBr) * vs30
 
     #velocity profile
     depth_array = np.concatenate([[0], np.cumsum(df_vel.Thk)])
@@ -665,8 +665,8 @@ for k, v_id_dsid in enumerate(vel_id_dsid):
     #create figure   
     fig, ax = plt.subplots(figsize = (10,10))
     hl1 = ax.step(vel_array,     depth_array, label='Velocity Profile')
-    hl2 = ax.plot(vel_m_array,   depth_m_array, linewidth=2.0, label=r'Velocity model (w/o $\delta B_r)')
-    hl3 = ax.plot(vel_mdB_array, depth_m_array, linewidth=2.0, label=r'Velocity model (w/ $\delta B_r)')
+    hl2 = ax.plot(vel_m_array,   depth_m_array, linewidth=2.0, linestyle='dashed', label=r'Velocity model (w/o $\delta B_r$)')
+    hl3 = ax.plot(vel_mdB_array, depth_m_array, linewidth=2.0,                     label=r'Velocity model (w/ $\delta B_r$)')
     #edit properties
     ax.set_xlabel('$V_S$ (m/sec)',  fontsize=30)
     ax.set_ylabel('Depth (m)',      fontsize=30)

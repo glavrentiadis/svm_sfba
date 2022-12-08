@@ -76,7 +76,7 @@ flag_trunc_z1 = True
 # fname_out_main = 'Jian'
 fname_out_main = 'all_trunc'
 #output directory
-dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd_log_res/' + fname_out_main + '/'
+dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd1_log_res/' + fname_out_main + '/'
 dir_fig = dir_out + 'figures/'
 
 #%% Load Data
@@ -260,7 +260,7 @@ param_vs0_orig = p1_orig*(df_velprofs.Vs30.values)**2 + p2_orig*df_velprofs.Vs30
 
 #mean prediction
 y_data = stan_data['Y']
-y_new  = np.log(param_vs0_mu   * ( 1 + param_k_mu   * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_mu))
+y_new  = np.log(param_vs0_new  * ( 1 + param_k_new  * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_new))
 y_orig = np.log(param_vs0_orig * ( 1 + param_k_orig * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_orig))
     
 #compute residuals
