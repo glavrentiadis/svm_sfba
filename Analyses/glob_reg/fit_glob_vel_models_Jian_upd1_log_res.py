@@ -51,7 +51,7 @@ s3_orig =-10.827
 s4_orig =-7.6187*10**(-3)
 
 #regression info
-fname_stan_model = '../stan_lib/jian_fun_glob_reg_upd_log_res.stan'
+fname_stan_model = '../stan_lib/jian_fun_glob_reg_upd1_log_res.stan'
 #iteration samples
 n_iter_warmup   = 50000
 n_iter_sampling = 50000
@@ -64,8 +64,8 @@ max_treedepth   = 10
 # Input/Output
 # --------------------------------
 #input flatfile
-fname_flatfile = '../../Data/vel_profiles/all_velocity_profles.csv'
-# fname_flatfile = '../../Data/vel_profiles/Jian_velocity_profles.csv'
+fname_flatfile = '../../Data/vel_profiles_dataset/all_velocity_profles.csv'
+# fname_flatfile = '../../Data/vel_profiles_dataset/Jian_velocity_profles.csv'
 
 #flag truncate
 # flag_trunc_z1 = False
@@ -235,7 +235,7 @@ df_params_summary = pd.DataFrame(params_summary, columns = columns_names, index=
 #create dataframe with parameters summary
 df_params_summary = pd.merge(df_profinfo, df_params_summary, how='right', left_index=True, right_index=True)
 df_params_summary[['DSID','VelID']] = df_params_summary[['DSID','VelID']].astype(int)
-df_params_summary.to_csv(dir_out + fname_out_main + '_stan_parameters' + '.csv', index=True)
+df_params_summary.to_csv(dir_out + fname_out_main + '_stan_parameters' + '.csv', index=False)
 
 # Velocity profile prediction
 # - - - - - - - - - - -
@@ -274,10 +274,10 @@ df_predict_summary = pd.DataFrame(predict_summary, columns = columns_names, inde
 #create dataframe with predictions and residuals
 df_predict_summary = pd.merge(df_velinfo, df_predict_summary, how='right', left_index=True, right_index=True)
 df_predict_summary[['DSID','VelID']] = df_predict_summary[['DSID','VelID']].astype(int)
-df_predict_summary.to_csv(dir_out + fname_out_main + '_stan_residuals' + '.csv', index=True)
+df_predict_summary.to_csv(dir_out + fname_out_main + '_stan_residuals' + '.csv', index=False)
 
 
-#%% Postprocessing
+#%% Comparison
 ### ======================================
 
 # Total Residual
@@ -527,6 +527,6 @@ for c_name in col_names_hyp:
     fig.savefig(dir_fig + fname_out_main + '_stan_traceplot_' + c_name + '_arviz' + '.png')
 
 #summary residuals
-print('Total Residuals Mean: %.1f'%df_predict_summary.loc[:,'res_tot'].mean())
-print('Total Residuals Std Dev: %.1f'%df_predict_summary.loc[:,'res_tot'].std())
+print('Total Residuals Mean: %.2f'%df_predict_summary.loc[:,'res_tot'].mean())
+print('Total Residuals Std Dev: %.2f'%df_predict_summary.loc[:,'res_tot'].std())
 

@@ -18,17 +18,19 @@ data {
   //observations
   vector[N] Z; //Depth array 
   vector[N] Y; //Velocity array
-
+  
+  //Vs30 scaling break
+  real Vs30_brk;
 }
 
 transformed data {
-  real delta = 1e-9;
+  real delta      = 1e-9;
 }
 
 parameters {
   //model parameters
   //k scaling
-  real            r1;
+  real<upper=0.0> r1;
   real<lower=0.0> r2;
   //s scaling
   real<lower=0.0> s1;
@@ -37,6 +39,11 @@ parameters {
  
   //aleatory variability
   real<lower=0.0> sigma_vel;
+  //between event std
+  real<lower=0.0> tau_r;
+
+  //between event term
+  vector[NVEL] r_dB;
 }
 
 transformed parameters {
@@ -47,10 +54,11 @@ transformed parameters {
   vector<lower=0.0>[NVEL] Vs0_p;
 
   //model parameters
-  k_p   = exp(r1 * log(Vs30) + r2);
   n_p   = 1. + s3 * inv_logit( (log(Vs30)-s1) * s2 );
   a_p   =-1. ./ n_p;
   for(i in 1:NVEL){
+      // k_p = exp(r1 + r2 * min([Vs30_brk, Vs30])  + r_dB);
+      k_p[i] = exp(r1 + r2 * min([Vs30_brk, Vs30[i]])  + r_dB[i]);
       // Vs0 = (k_p*(a_p+1.)*z_star + (1.+k_p*(30.-z_star))^(a_p+1.) - 1.) / (30.*(a_p+1.)*k_p) * Vs30;
       Vs0_p[i] = (k_p[i]*(a_p[i]+1.)*z_star + (1.+k_p[i]*(30.-z_star))^(a_p[i]+1.) - 1.) / (30.*(a_p[i]+1.)*k_p[i]) * Vs30[i];
   }
@@ -64,14 +72,19 @@ model {
   //prior distributions
   //---   ---   ---   ---   ---   ---
   //model coefficients
-  r1 ~ normal(0.,1);
-  r2 ~ normal(10.,6);
+  r1 ~ normal(-3.0,0.5);
+  r2 ~ exponential(2.0);
   s1 ~ lognormal(1.25,0.50);
   s2 ~ lognormal(1.25,0.50);
   s3 ~ lognormal(0.65,0.40);
   
   //aleatory variability
   sigma_vel ~ lognormal(-0.3,0.6);
+  tau_r     ~ lognormal(-0.3,0.6);
+ 
+  //between event term r scaling
+  r_dB ~ normal(0,tau_r);
+  
  
   //functional model
   //---   ---   ---   ---   ---   ---

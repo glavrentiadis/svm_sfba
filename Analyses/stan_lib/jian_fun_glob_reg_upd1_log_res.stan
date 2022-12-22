@@ -51,14 +51,10 @@ transformed parameters {
   k_p   = exp(r1 * (Vs30^r2) + r3);
   n_p   = 1. + s3 * inv_logit( (log(Vs30)-s1) * s2 );
   a_p   =-1. ./ n_p;
-  //print("s1=",s1,",  s2=",s2,",  s3=",s3,",  r1=",r1,",  r2= ",r2,",  r3= ",r3);
-
   for(i in 1:NVEL){
       // Vs0 = (k_p*(a_p+1.)*z_star + (1.+k_p*(30.-z_star))^(a_p+1.) - 1.) / (30.*(a_p+1.)*k_p) * Vs30;
       Vs0_p[i] = (k_p[i]*(a_p[i]+1.)*z_star + (1.+k_p[i]*(30.-z_star))^(a_p[i]+1.) - 1.) / (30.*(a_p[i]+1.)*k_p[i]) * Vs30[i];
-      //print("Vs30[",i,"]=",Vs30[i],",  k[",i,"]=",k_p[i],",  n[",i,"]=",n_p[i],",  Z[",i,"]=",Z[i],",  Vs0[",i,"] = ", Vs0_p[i]);
   }
-  //print("Vs30[",1,"]=",Vs30[1],",  k[",1,"]=",k_p[1],",  n[",1,"]=",n_p[1]);
 
 }
 

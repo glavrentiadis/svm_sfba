@@ -34,6 +34,7 @@ def sigmoid(x):
 ### ======================================
 #constants
 z_star = 2.5
+vs30_brk = 500.0
 
 #original scaling coefficients
 #Vs0 scaling
@@ -51,7 +52,7 @@ s3_orig =-10.827
 s4_orig =-7.6187*10**(-3)
 
 #regression info
-fname_stan_model = '../stan_lib/jian_fun_glob_reg_upd2_log_res.stan'
+fname_stan_model = '../stan_lib/jian_fun_glob_reg_upd4_log_res.stan'
 #iteration samples
 n_iter_warmup   = 50000
 n_iter_sampling = 50000
@@ -76,7 +77,7 @@ flag_trunc_z1 = True
 # fname_out_main = 'Jian'
 fname_out_main = 'all_trunc'
 #output directory
-dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd2_log_res/' + fname_out_main + '/'
+dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd4_log_res/' + fname_out_main + '/'
 dir_fig = dir_out + 'figures/'
 
 #%% Load Data
@@ -119,6 +120,7 @@ stan_data = {'N':       len(df_velprofs),
              'Vs30':    df_velprofs.Vs30.values[vel_idx],
              'Z':       df_velprofs.Depth_MPt.values,
              'Y':       np.log(df_velprofs.Vs.values),
+             'Vs30_brk': vs30_brk 
             }
 #write as json file
 fname_stan_data = dir_out +  'gobal_reg_stan_data' + '.json'
@@ -248,7 +250,7 @@ s1_new = df_stan_hyp.loc['prc_0.50','s1']
 s2_new = df_stan_hyp.loc['prc_0.50','s2']
 s3_new = df_stan_hyp.loc['prc_0.50','s3']
 #mean profile parameters
-param_k_new   = np.exp( r1_new*np.log(df_velprofs.Vs30.values) + r2_new )
+param_k_new   = np.exp( r1_new + r2_new*np.minimum(df_velprofs.Vs30.values, vs30_brk) )
 param_n_new   = 1 + s3_new * sigmoid((np.log(df_velprofs.Vs30.values)-s1_new)*s2_new);
 param_a_new   =-1/param_n_new
 param_vs0_new = (param_k_new*(param_a_new+1)*z_star + (1+param_k_new*(30-z_star))**(param_a_new+1) - 1) / (30*(param_a_new+1)*param_k_new) * df_velprofs.Vs30.values
@@ -388,7 +390,7 @@ for k, vs30_b in enumerate(vs30_bins):
 # ---------------------------
 vs30_array = np.logspace(np.log10(10), np.log10(2000))
 #scaling relationships
-param_k_scl   = np.exp( r1_new*np.log(vs30_array) + r2_new )
+param_k_scl   = np.exp(r1_new + r2_new*np.minimum(vs30_array,vs30_brk))
 param_n_scl   = 1 + s3_new * sigmoid((np.log(vs30_array )-s1_new)*s2_new);
 param_a_scl   =-1/param_n_scl
 param_vs0_scl = (param_k_scl*(param_a_scl+1)*z_star + (1+param_k_scl*(30-z_star))**(param_a_scl+1) - 1) / (30*(param_a_scl+1)*param_k_scl) * vs30_array 
@@ -462,7 +464,7 @@ for k, v_id_dsid in enumerate(vel_id_dsid):
 
     #velocity prof information
     vs30 = df_vel.Vs30.values[0]
-    param_k    = np.exp( r1_new*np.log(vs30) + r2_new)
+    param_k    = np.exp( r1_new + r2_new*np.minimum(vs30,vs30_brk) )
     param_n    = 1 + s3_new * sigmoid((np.log(vs30)-s1_new)*s2_new);
     param_a    =-1/param_n
     param_vs0  = (param_k*(param_a+1)*z_star + (1+param_k*(30-z_star))**(param_a+1) - 1) / (30*(param_a+1)*param_k) * vs30

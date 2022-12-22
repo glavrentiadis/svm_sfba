@@ -27,7 +27,7 @@ def CalcVS30(depth, vel):
     #interpolate depths at 1m interval
     d_array  = np.arange(0,30.05,0.05)
     dz_array = np.diff(d_array)
-    vs_array = interp.interp1d(x=depth,y=vel,kind='next', bounds_error=False, fill_value='extrapolate')(d_array[:-1])
+    vs_array = interp.interp1d(x=depth,y=vel,kind='next', bounds_error=False, fill_value=(vel[0],vel[-1]))(d_array[:-1])
 
     #compute Vs30
     t_array = dz_array/vs_array
@@ -155,7 +155,7 @@ filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
 
 #output directory
 # dir_out = '../../Data/vel_profiles/'
-dir_out = '../../Data/vel_profiles_dataset2/'
+dir_out = '../../Data/vel_profiles_dataset/'
 
 #%% Load Data
 ### ======================================
@@ -177,6 +177,12 @@ df_vel_profs.append( ReadGenProfs(dir_name=dir_velprofs_VSPDB, fname_vprof_info=
 #concatinate all data
 df_vel_profs = pd.concat(df_vel_profs, axis=0).reset_index(drop=True)
 
+#create velocity profile info
+_, vel_idx    = np.unique(df_vel_profs[['DSID','VelID']].values, axis=0, return_index=True)
+n_vel         = vel_idx.shape[0]
+df_profs_info = df_vel_profs[['DSID','DSName','VelID','VelName','Vs30','Lat','Lon']].iloc[vel_idx,:].reset_index(drop=True)
+
+
 #%% Save Data
 ### ======================================
 if not os.path.isdir(dir_out): pathlib.Path(dir_out).mkdir(parents=True, exist_ok=True)
@@ -190,6 +196,6 @@ df_vel_profs.loc[df_vel_profs.DSID==2,].to_csv( dir_out+ 'Boore_velocity_profles
 #save VSPDB profiles
 df_vel_profs.loc[df_vel_profs.DSID==3,].to_csv( dir_out+ 'VSPDB_velocity_profles.csv',    index=False )
 
-
-
+#save velocity profile info
+df_profs_info.to_csv( dir_out+'all_velocity_profles_info.csv', index=False )
 
