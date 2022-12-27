@@ -34,7 +34,7 @@ elif flag_io == 3: fname_velinfo = '../../Data/vel_profiles_dataset/Jian_velocit
 elif flag_io == 4: fname_velinfo = '../../Data/vel_profiles_dataset/VSPDB_velocity_profles_info.csv'
 
 # output directory
-dir_out = '../../Data/misc/USGS_comparison'
+dir_out = '../../Data/misc/USGS_comparison/'
 # output filename
 if   flag_io == 1: fname_out = 'all_velocity_profles_info_USGS'
 elif flag_io == 2: fname_out = 'Boore_velocity_profles_info_USGS'
