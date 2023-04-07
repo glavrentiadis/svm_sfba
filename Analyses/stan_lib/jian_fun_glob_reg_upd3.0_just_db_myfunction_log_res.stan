@@ -26,8 +26,10 @@ parameters {
   //k scaling
   real <lower=0.0>r1;
   real <lower=0.0>r2;
-  real <lower=-10,upper=-5>r3;
-  real <lower=-5,upper=-3>r4;
+  real r3;
+  real r4;
+  //real <lower=-10,upper=-5>r3;
+  //real <lower=-5,upper=-3>r4;
   //s scaling
   real<lower=0.0> s1;
   real<lower=0.0> s2;
