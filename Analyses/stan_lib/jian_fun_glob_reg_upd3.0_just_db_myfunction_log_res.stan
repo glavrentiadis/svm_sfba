@@ -53,8 +53,8 @@ transformed parameters {
 
   //model parameters
  
- // k_p   = exp(r1 * inv_logit((log(Vs30)-r2)*r3) + r4);
-  k_p   = exp((r1/(1+(r2*0.001*Vs30)^r3))+r4);      
+  //k_p   = exp((r1/(1+(r2*0.001*Vs30)^r3))+r4);   
+  k_p   = exp((r1/(1+(r2*Vs30)^r3))+r4);
   n_p   = 1. + s3 * inv_logit( (log(Vs30)-s1) * s2 );
   a_p   =-1. ./ n_p;
   for(i in 1:NVEL){
