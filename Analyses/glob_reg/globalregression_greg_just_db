@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Mar  6 17:24:22 2023
-
-@author: hsalmanitehrani
-"""
-
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
 Created on Thu Aug 25 06:10:11 2022
 
 @author: glavrent
@@ -91,8 +83,7 @@ flag_trunc_z1 = False
 
 #output filename
 fname_out_main = 'k_just_db'
-# fname_out_main = 'Jian'
-###fname_out_main = 'all_trunc'
+
 #output directory
 ###dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd3_log_res/' + fname_out_main + '/'
 dir_out = './GlobalRegression/' + fname_out_main + '/'
@@ -782,7 +773,5 @@ for c_name in col_names_hyp:
     fig.savefig(dir_fig + fname_out_main + '_stan_traceplot_' + c_name + '_arviz' + '.png')
 
 #summary residuals
-#print('Total Residuals Mean: %.2f'%df_predict_summary.loc[:,'res_tot'].mean())
-#print('Total Residuals Std Dev: %.2f'%df_predict_summary.loc[:,'res_tot'].std())
 print('Within-profile Residuals Mean: %.2f'%df_predict_summary.loc[:,'res_dW'].mean())
 print('Within-profile Residuals Std Dev: %.2f'%df_predict_summary.loc[:,'res_dW'].std())
