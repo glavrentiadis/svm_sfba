@@ -5,8 +5,7 @@ Created on Thu Aug 25 06:10:11 2022
 
 @author: glavrent
 """
-#reset-f
-#load variables
+
 #load variables
 import os
 import sys
@@ -27,15 +26,6 @@ import arviz as az
 mpl.use('agg')
 #stan library
 import cmdstanpy
-
-
-sys.path.insert(0,'../python_lib/plotting')
-import pylib_contour_plots as pycplt
-#stan library
-#import cmdstanpy
-###from cmdstanpy import cmdstan_path, CmdStanModel
-###import cmdstanpy; cmdstanpy.install_cmdstan(overwrite=True)
-
 #user functions
 def sigmoid(x):
   return 1 / (1 + np.exp(-x))
@@ -61,10 +51,10 @@ s3_orig =-10.827
 s4_orig =-7.6187*10**(-3)
 
 #regression info
-fname_stan_model = '~/GlobalRegression/jian_fun_glob_reg_upd3.0_just_db_myfunction_log_res.stan'
+fname_stan_model = '../stan_lib/jian_fun_glob_reg_upd1.0_log_res.stan'
 #iteration samples
-n_iter_warmup   = 15000
-n_iter_sampling = 15000
+n_iter_warmup   = 50000
+n_iter_sampling = 50000
 #MCMC parameters
 n_chains        = 6
 adapt_delta     = 0.8
@@ -74,19 +64,19 @@ max_treedepth   = 10
 # Input/Output
 # --------------------------------
 #input flatfile
-fname_flatfile = '~/Downloads/Data/all_velocity_profiles_new.xlsx'
+fname_flatfile = '../../Data/vel_profiles_dataset/all_velocity_profles.csv'
 # fname_flatfile = '../../Data/vel_profiles_dataset/Jian_velocity_profles.csv'
 
 #flag truncate
-flag_trunc_z1 = False
-#flag_trunc_z1 = True
+# flag_trunc_z1 = False
+flag_trunc_z1 = True
 
 #output filename
-fname_out_main = 'k_just_db_myfunction_with_r4'
-
+# fname_out_main = 'all'
+# fname_out_main = 'Jian'
+fname_out_main = 'all_trunc'
 #output directory
-###dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd3_log_res/' + fname_out_main + '/'
-dir_out = './GlobalRegression/' + fname_out_main + '/'
+dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd1.0_log_res/' + fname_out_main + '/'
 dir_fig = dir_out + 'figures/'
 
 #%% Load Data
@@ -98,8 +88,8 @@ df_velprofs = pd.read_csv(fname_flatfile)
 df_velprofs = df_velprofs.loc[~np.isnan(df_velprofs.Depth_MPt),:]
 
 #truncate profiles at depth of 1000m/sec
-###if flag_trunc_z1:
-###    df_velprofs = df_velprofs.loc[~df_velprofs.flag_Z1,:]
+if flag_trunc_z1:
+    df_velprofs = df_velprofs.loc[~df_velprofs.flag_Z1,:]
 
 #reset index
 df_velprofs.reset_index(drop=True, inplace=True)
@@ -111,8 +101,8 @@ pathlib.Path(dir_out).mkdir(parents=True, exist_ok=True)
 pathlib.Path(dir_fig).mkdir(parents=True, exist_ok=True) 
 
 #unique datasets
-###ds_ids, ds_idx = np.unique(df_velprofs.DSID, return_index=True)
-###ds_names       = df_velprofs.DSName.iloc[ds_idx].values
+ds_ids, ds_idx = np.unique(df_velprofs.DSID, return_index=True)
+ds_names       = df_velprofs.DSName.iloc[ds_idx].values
 
 #velocity profile ids
 vel_id_dsid, vel_idx, vel_inv = np.unique(df_velprofs[['DSID','VelID']].values, axis=0, return_index=True, return_inverse=True)
@@ -158,20 +148,21 @@ for f_j in fname_json: os.remove(dir_out + f_j)
 #%% Postprocessing
 ### ======================================
 #initiaize flatfile for sumamry of non-erg coefficinets and residuals
-df_velinfo  = df_velprofs[['DSID', 'DSName','VelID','VelName','Vs30','Lat','Lon','Depth_MPt','Thk', 'Vs', 'flag_Z1']]
-df_profinfo = df_velprofs[['DSID', 'DSName','VelID','VelName','Vs30','Lat','Lon']].iloc[vel_idx,:].reset_index(drop=True)
+df_velinfo  = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Lat','Lon','Depth_MPt','Thk', 'Vs', 'flag_Z1']]
+df_profinfo = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Lat','Lon']].iloc[vel_idx,:].reset_index(drop=True)
 
 # process regression output
 # ---   ---   ---   ---
 # Extract posterior samples
 # - - - - - - - - - - - 
 #hyper-parameters
-col_names_hyp = ['r1','r2','r3','r4','s1','s2','s3','sigma_vel']
+col_names_hyp = ['r1','r2','r3','s1','s2','s3','sigma_vel']
 #vel profile parameters
 col_names_vs0 = ['Vs0.%i'%(k) for k in range(n_vel)]
 col_names_k   = ['k.%i'%(k)   for k in range(n_vel)]
 col_names_n   = ['n.%i'%(k)   for k in range(n_vel)]
-col_names_all = col_names_hyp + col_names_vs0 + col_names_k + col_names_n 
+col_names_dB  = ['dB.%i'%(k)  for k in range(n_vel)]
+col_names_all = col_names_hyp + col_names_vs0 + col_names_k + col_names_n #+col_names_dB
     
 #extract raw hyper-parameter posterior samples
 stan_posterior = np.stack([stan_fit.stan_variable(c_n) for c_n in col_names_hyp], axis=1)
@@ -179,6 +170,7 @@ stan_posterior = np.stack([stan_fit.stan_variable(c_n) for c_n in col_names_hyp]
 stan_posterior = np.concatenate((stan_posterior, stan_fit.stan_variable('Vs0_p')),  axis=1)
 stan_posterior = np.concatenate((stan_posterior, stan_fit.stan_variable('k_p')), axis=1)
 stan_posterior = np.concatenate((stan_posterior, stan_fit.stan_variable('n_p')), axis=1)
+# stan_posterior = np.concatenate((stan_posterior, stan_fit.stan_variable('dB')),     axis=1)
     
 #save raw-posterior distribution
 df_stan_posterior_raw = pd.DataFrame(stan_posterior, columns = col_names_all)
@@ -187,7 +179,6 @@ df_stan_posterior_raw.to_csv(dir_out + fname_out_main + '_stan_posterior_raw' + 
 # Summarize hyper-parameters
 # - - - - - - - - - - - 
 #summarize posterior distributions of hyper-parameters
-#df_stan_posterior_raw = pd.read_csv('/home/hsalmanitehrani/GlobalRegression/all2/all2_stan_posterior_raw.csv')
 perc_array = np.array([0.05,0.25,0.5,0.75,0.95])
 df_stan_hyp = df_stan_posterior_raw[col_names_hyp].quantile(perc_array)
 df_stan_hyp = df_stan_hyp.append(df_stan_posterior_raw[col_names_hyp].mean(axis = 0), ignore_index=True)
@@ -200,7 +191,7 @@ df_stan_posterior = df_stan_posterior_raw[col_names_hyp].quantile(perc_array)
 df_stan_posterior.index.name = 'prc'
 df_stan_posterior.to_csv(dir_out + fname_out_main + '_stan_hyperposterior' + '.csv', index=True)
 
-#del stan_posterior, col_names_all
+del stan_posterior, col_names_all
 
 # Velocity profile parameters
 # - - - - - - - - - - - 
@@ -235,8 +226,8 @@ params_summary = np.vstack((param_vs0_mu,
                             param_n_sig,
                             param_sigma_vel_mu,
                             param_sigma_vel_med,
-                            param_sigma_vel_sig,)).T
-columns_names = ['param_vs0_mean', 'param_k_mean',  'param_n_mean', 
+                            param_sigma_vel_sig)).T
+columns_names = ['param_vs0_mean', 'param_k_mean',  'param_n_mean',
                  'param_vs0_med',  'param_k_med',   'param_n_med',
                  'param_vs0_std',  'param_k_std',   'param_n_std',
                  'sigma_vel_mean', 'sigma_vel_med', 'sigma_vel_std']
@@ -253,27 +244,24 @@ df_params_summary.to_csv(dir_out + fname_out_main + '_stan_parameters' + '.csv',
 r1_new = df_stan_hyp.loc['prc_0.50','r1']
 r2_new = df_stan_hyp.loc['prc_0.50','r2']
 r3_new = df_stan_hyp.loc['prc_0.50','r3']
-r4_new = df_stan_hyp.loc['prc_0.50','r4']
 #n scaling
 s1_new = df_stan_hyp.loc['prc_0.50','s1']
 s2_new = df_stan_hyp.loc['prc_0.50','s2']
 s3_new = df_stan_hyp.loc['prc_0.50','s3']
-
 #mean profile parameters
-param_k_new   = np.exp((r1_new / (1+(r2_new*0.001*df_velprofs.Vs30.values)**r3_new))+ r4_new);
+param_k_new   = np.exp( r1_new*(df_velprofs.Vs30.values)**r2_new + r3_new )
 param_n_new   = 1 + s3_new * sigmoid((np.log(df_velprofs.Vs30.values)-s1_new)*s2_new);
 param_a_new   =-1/param_n_new
 param_vs0_new = (param_k_new*(param_a_new+1)*z_star + (1+param_k_new*(30-z_star))**(param_a_new+1) - 1) / (30*(param_a_new+1)*param_k_new) * df_velprofs.Vs30.values
-
 #orignal profile parameters
-param_k_orig   = np.exp(r1_orig*((df_velprofs.Vs30.values)**r2_orig) + r3_orig)
-param_n_orig   = s1_orig*np.exp(s2_orig*df_velprofs.Vs30.values) + s3_orig*np.exp(s4_orig*df_velprofs.Vs30.values)
+param_k_orig   = np.exp( r1_orig*(df_velprofs.Vs30.values)**r2_orig + r3_orig )
+param_n_orig   = 1/( s1_orig*np.exp(s2_orig*df_velprofs.Vs30.values) + s3_orig*np.exp(s4_orig*df_velprofs.Vs30.values) ) 
 param_vs0_orig = p1_orig*(df_velprofs.Vs30.values)**2 + p2_orig*df_velprofs.Vs30.values + p3_orig
 
 #mean prediction
-y_data  = stan_data['Y']
-y_new   = np.log(param_vs0_new    * ( 1 + param_k_new    * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_new))
-y_orig  = np.log(param_vs0_orig   * ( 1 + param_k_orig   * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_orig))
+y_data = stan_data['Y']
+y_new  = np.log(param_vs0_new  * ( 1 + param_k_new  * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_new))
+y_orig = np.log(param_vs0_orig * ( 1 + param_k_orig * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_orig))
     
 #compute residuals
 res_tot     = y_data - y_new
@@ -294,7 +282,7 @@ df_predict_summary.to_csv(dir_out + fname_out_main + '_stan_residuals' + '.csv',
 
 # Total Residual
 # ---------------------------
-#total residuals versus depth
+#residuals versus depth
 i_sort    = np.argsort( df_predict_summary.Depth_MPt.values )
 x_data    = df_predict_summary.Depth_MPt[i_sort]
 y_data    = df_predict_summary.res_tot[i_sort]
@@ -303,62 +291,43 @@ spl_mmean = interp.UnivariateSpline(x_data,y_data)
 #spl_mmean.set_smoothing_factor(2)
 y_mmean   = spl_mmean(x_mmean)
 
-fname_fig = (fname_out_main + '_total_residuals_versus_depth').replace(' ','_')
+fname_fig = (fname_out_main + '_residuals_versus_depth').replace(' ','_')
 fig, ax = plt.subplots(figsize = (10,10))
 hl = ax.plot(y_data, x_data, 'o',  markersize=4)
 hl = ax.plot(y_mmean, x_mmean, '-',  linewidth=2)
 #edit properties
-ax.set_xlabel('total residuals',  fontsize=30)
+ax.set_xlabel('residuals',  fontsize=30)
 ax.set_ylabel('Depth (m)',  fontsize=30)
 ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
 ax.set_xlim([-3, 3])
-ax.set_ylim([0, 500])
+ax.set_ylim([0, 200])
 ax.invert_yaxis()
-ax.set_title(r'Total Residuals versus Depth', fontsize=30)
+ax.set_title(r'Residuals versus Depth', fontsize=30)
 fig.tight_layout()
 fig.savefig( dir_fig + fname_fig + '.png' )
 
-#total residuals versus depth (orignal model)
-fname_fig = (fname_out_main + '_total_residuals_versus_depth_original').replace(' ','_')
-fig, ax = plt.subplots(figsize = (10,10))
-hl = ax.plot(df_predict_summary.loc[:,'res_orig'], df_predict_summary.loc[:,'Depth_MPt'], 'o', label='Shi and Asimaki, 2018', zorder=1)
-#edit properties
-ax.set_xlabel('total residuals',   fontsize=30)
-ax.set_ylabel('Depth (m)',   fontsize=30)
-ax.legend(loc='lower right', fontsize=30)
-ax.grid(which='both')
-ax.tick_params(axis='x', labelsize=25)
-ax.tick_params(axis='y', labelsize=25)
-#ax.set_xlim([-3, 3])
-ax.set_ylim([0, 500])
-ax.invert_yaxis()
-ax.set_title(r'Total Residuals versus Depth', fontsize=30)
-fig.tight_layout()
-fig.savefig( dir_fig + fname_fig + '.png' )
-
-
-#total residuals versus depth (proposed and orignal model)
-fname_fig = (fname_out_main + '_total_residuals_versus_depth_comparison').replace(' ','_')
+#residuals versus depth (proposed and orignal model)
+fname_fig = (fname_out_main + '_residuals_versus_depth_comparison').replace(' ','_')
 fig, ax = plt.subplots(figsize = (10,10))
 hl = ax.plot(df_predict_summary.loc[:,'res_tot'], df_predict_summary.loc[:,'Depth_MPt'],  'o', markersize=4, label='Proposed Model')
 hl = ax.plot(df_predict_summary.loc[:,'res_orig'], df_predict_summary.loc[:,'Depth_MPt'], 'o', label='Shi and Asimaki, 2018', zorder=1)
 #edit properties
-ax.set_xlabel('total residuals',   fontsize=30)
+ax.set_xlabel('residuals',   fontsize=30)
 ax.set_ylabel('Depth (m)',   fontsize=30)
 ax.legend(loc='lower right', fontsize=30)
 ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
 ax.set_xlim([-3, 3])
-ax.set_ylim([0, 500])
+ax.set_ylim([0, 200])
 ax.invert_yaxis()
-ax.set_title(r'Total Residuals versus Depth', fontsize=30)
+ax.set_title(r'Residuals versus Depth', fontsize=30)
 fig.tight_layout()
 fig.savefig( dir_fig + fname_fig + '.png' )
 
-#total residuals versus Vs30
+#residuals versus Vs30
 i_sort    = np.argsort( df_predict_summary.Vs30.values )
 x_data    = df_predict_summary.Vs30[i_sort]
 y_data    = df_predict_summary.res_tot[i_sort]
@@ -367,23 +336,23 @@ spl_mmean = interp.UnivariateSpline(x_data,y_data)
 #spl_mmean.set_smoothing_factor(2)
 y_mmean   = spl_mmean(x_mmean)
 
-fname_fig = (fname_out_main + '_total_residuals_versus_Vs30').replace(' ','_')
+fname_fig = (fname_out_main + '_residuals_versus_Vs30').replace(' ','_')
 fig, ax = plt.subplots(figsize = (10,10))
 hl = ax.plot(y_data,  x_data,  'o',  markersize=4)
 hl = ax.plot(y_mmean, x_mmean, '-',  linewidth=2)
 #edit properties
-ax.set_xlabel('total residuals',  fontsize=30)
+ax.set_xlabel('residuals',  fontsize=30)
 ax.set_ylabel(r'$V_{S30}$', fontsize=30)
 ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
 ax.set_xlim([-3, 3])
 ax.set_ylim([0, 2000])
-ax.set_title(r'Total Residuals versus $V_{S30}$', fontsize=30)
+ax.set_title(r'Residuals versus $V_{S30}$', fontsize=30)
 fig.tight_layout()
 fig.savefig( dir_fig + fname_fig + '.png' )
 
-#total residuals versus depth (Vs30 bins)
+#residuals versus depth (Vs30 bins)
 vs30_bins = [(0,100),(100,250),(250, 400), (400, 800), (800, 3000)]
 for k, vs30_b in enumerate(vs30_bins):
     i_binned = np.logical_and(df_predict_summary.Vs30 >= vs30_b[0],
@@ -398,28 +367,29 @@ for k, vs30_b in enumerate(vs30_bins):
     #spl_mmean.set_smoothing_factor(2)
     y_mmean   = spl_mmean(x_mmean)
 
-    fname_fig = (fname_out_main + '_total_residuals_versus_depth_vs30_%i_%i'%vs30_b).replace(' ','_')
+    fname_fig = (fname_out_main + '_residuals_versus_depth_vs30_%i_%i'%vs30_b).replace(' ','_')
     fig, ax = plt.subplots(figsize = (10,10))
     hl = ax.plot(y_data, x_data, 'o',  markersize=4)
     hl = ax.plot(y_mmean, x_mmean, '-',  linewidth=2)
     #edit properties
-    ax.set_xlabel('total residuals',  fontsize=30)
+    ax.set_xlabel('residuals',  fontsize=30)
     ax.set_ylabel('Depth (m)',      fontsize=30)
     ax.grid(which='both')
     ax.tick_params(axis='x', labelsize=25)
     ax.tick_params(axis='y', labelsize=25)
     ax.set_xlim([-3, 3])
-    ax.set_ylim([0, 500])
+    ax.set_ylim([0, 200])
     ax.invert_yaxis()
-    ax.set_title('Total Residuals versus Depth \n $V_{S30}= [%.i, %.i)$ (m/sec)'%vs30_b, fontsize=30)
+    ax.set_title('Residuals versus Depth \n $V_{S30}= [%.i, %.i)$ (m/sec)'%vs30_b, fontsize=30)
     fig.savefig( dir_fig + fname_fig + '.png' )
-
-
+    
+    
+    
 # Parameter Scaling
 # ---------------------------
 vs30_array = np.logspace(np.log10(10), np.log10(2000))
 #scaling relationships
-param_k_scl   = np.exp((r1_new / (1+(r2_new*0.001*vs30_array)**r3_new))+ r4_new)
+param_k_scl   = np.exp( r1_new*(vs30_array )**r2_new + r3_new )
 param_n_scl   = 1 + s3_new * sigmoid((np.log(vs30_array )-s1_new)*s2_new);
 param_a_scl   =-1/param_n_scl
 param_vs0_scl = (param_k_scl*(param_a_scl+1)*z_star + (1+param_k_scl*(30-z_star))**(param_a_scl+1) - 1) / (30*(param_a_scl+1)*param_k_scl) * vs30_array 
@@ -430,37 +400,17 @@ fig, ax = plt.subplots(figsize = (10,10))
 hl = ax.semilogx(vs30_array, param_k_scl, '-', linewidth=4, zorder=10, label='Global Model')
 hl = ax.semilogx(df_params_summary.Vs30, df_params_summary.param_k_med, 'o',  linewidth=2, color='orangered', label='Posterior Median')
 hl = ax.errorbar(df_params_summary.Vs30, df_params_summary.param_k_med, yerr=df_params_summary.param_k_std, 
-                 capsize=4, fmt='none', ecolor='orangered', label='Posterior Std')
+                  capsize=4, fmt='none', ecolor='orangered', label='Posterior Std')
 #edit properties
 ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=30)
 ax.set_ylabel(r'$k$',       fontsize=30)
-ax.legend(loc='upper left', fontsize=30)
+ax.legend(loc='lower right', fontsize=30)
 ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
-#ax.set_ylim([0, 10])
+ax.set_ylim([0, 2])
 ax.set_title(r'$k$ Scaling', fontsize=30)
 fig.tight_layout()
-fig.savefig( dir_fig + fname_fig + '.png' )
-
-#scaling k LOG
-fname_fig = (fname_out_main + '_scaling_param_k_log').replace(' ','_')
-fig, ax = plt.subplots(figsize = (10,10))
-hl = ax.semilogx(vs30_array, param_k_scl, '-', linewidth=4, zorder=10, label='Global Model')
-hl = ax.semilogx(df_params_summary.Vs30, df_params_summary.param_k_med, 'o',  linewidth=2, color='orangered', label='Posterior Median')
-hl = ax.errorbar(df_params_summary.Vs30, df_params_summary.param_k_med, yerr=df_params_summary.param_k_std, 
-                 capsize=4, fmt='none', ecolor='orangered', label='Posterior Std')
-#edit properties
-ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=30)
-ax.set_ylabel(r'$k$',       fontsize=30)
-ax.legend(loc='upper left', fontsize=30)
-ax.grid(which='both')
-ax.tick_params(axis='x', labelsize=25)
-ax.tick_params(axis='y', labelsize=25)
-#ax.set_ylim([0, 10])
-ax.set_title(r'$k$ Scaling', fontsize=30)
-fig.tight_layout()
-plt.yscale("log")
 fig.savefig( dir_fig + fname_fig + '.png' )
 
 #scaling n
@@ -513,23 +463,22 @@ for k, v_id_dsid in enumerate(vel_id_dsid):
 
     #velocity prof information
     vs30 = df_vel.Vs30.values[0]
-    param_k      = np.exp((r1_new / (1+(r2_new*0.001*vs30)**r3_new))+ r4_new)
-    param_n      = 1 + s3_new * sigmoid((np.log(vs30)-s1_new)*s2_new);
-    param_a      =-1/param_n
-    param_vs0    = (param_k*(param_a+1)*z_star    + (1+param_k*(30-z_star))**(param_a+1) - 1)    / (30*(param_a+1)*param_k) * vs30
- 
+    param_k    = np.exp( r1_new*(vs30)**r2_new + r3_new)
+    param_n    = 1 + s3_new * sigmoid((np.log(vs30)-s1_new)*s2_new);
+    param_a    =-1/param_n
+    param_vs0  = (param_k*(param_a+1)*z_star + (1+param_k*(30-z_star))**(param_a+1) - 1) / (30*(param_a+1)*param_k) * vs30
 
     #velocity profile
     depth_array = np.concatenate([[0], np.cumsum(df_vel.Thk)])
     vel_array   = np.concatenate([df_vel.Vs.values, [df_vel.Vs.values[-1]]])
     #velocity model
     depth_m_array = np.linspace(depth_array.min(), depth_array.max(), 1000)
-    vel_m_array   = param_vs0    * ( 1 + param_k    * ( np.maximum(0, depth_m_array-z_star) ) )**(1/param_n)
+    vel_m_array   = param_vs0 * ( 1 + param_k * ( np.maximum(0, depth_m_array-z_star) ) )**(1/param_n)
     
     #create figure   
     fig, ax = plt.subplots(figsize = (10,10))
-    hl1 = ax.step(vel_array,     depth_array, label='Velocity Profile')
-    hl2 = ax.plot(vel_m_array,   depth_m_array, linewidth=2.0, linestyle='dashed', label=r'Velocity model')
+    hl1 = ax.step(vel_array,   depth_array, label='Velocity Profile')
+    hl2 = ax.plot(vel_m_array, depth_m_array, linewidth=2.0, label='Velocity model')
     #edit properties
     ax.set_xlabel('$V_S$ (m/sec)',  fontsize=30)
     ax.set_ylabel('Depth (m)',      fontsize=30)
@@ -539,8 +488,8 @@ for k, v_id_dsid in enumerate(vel_id_dsid):
     ax.tick_params(axis='y', labelsize=25)
     ax.xaxis.set_tick_params(which='major', size=10, width=2, direction='in', top='on')
     ax.yaxis.set_tick_params(which='major', size=10, width=2, direction='in', right='on')
-    #ax.set_xlim([0, 1500])
-    #ax.set_ylim([0, 200])
+    ax.set_xlim([0, 1200])
+    ax.set_ylim([0, 200])
     ax.invert_yaxis()
     ax.set_title(name_vel, fontsize=30)
     fig.tight_layout()
@@ -580,3 +529,4 @@ for c_name in col_names_hyp:
 #summary residuals
 print('Total Residuals Mean: %.2f'%df_predict_summary.loc[:,'res_tot'].mean())
 print('Total Residuals Std Dev: %.2f'%df_predict_summary.loc[:,'res_tot'].std())
+

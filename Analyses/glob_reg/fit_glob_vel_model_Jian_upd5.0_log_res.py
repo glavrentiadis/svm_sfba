@@ -30,6 +30,7 @@ import cmdstanpy
 def sigmoid(x):
   return 1 / (1 + np.exp(-x))
 
+
 #%% Define Variables
 ### ======================================
 #constants
@@ -51,7 +52,7 @@ s3_orig =-10.827
 s4_orig =-7.6187*10**(-3)
 
 #regression info
-fname_stan_model = '../stan_lib/jian_fun_glob_reg_upd3_log_res.stan'
+fname_stan_model = '../stan_lib/jian_fun_glob_reg_upd5.0_log_res.stan'
 #iteration samples
 n_iter_warmup   = 50000
 n_iter_sampling = 50000
@@ -60,24 +61,27 @@ n_chains        = 6
 adapt_delta     = 0.8
 max_treedepth   = 10
 
-
 # Input/Output
 # --------------------------------
 #input flatfile
 fname_flatfile = '../../Data/vel_profiles_dataset/all_velocity_profles.csv'
-# fname_flatfile = '../../Data/vel_profiles_dataset/Jian_velocity_profles.csv'
 
 #flag truncate
-# flag_trunc_z1 = False
-flag_trunc_z1 = True
+flag_trunc_z1 = False
+# flag_trunc_z1 = True
+
+#Vs30 minimum threshold
+flag_vs30_thres = False
+Vs30_thres_min = 100
 
 #output filename
 # fname_out_main = 'all'
 # fname_out_main = 'Jian'
 fname_out_main = 'all_trunc'
 #output directory
-dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd3_log_res/' + fname_out_main + '/'
+dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd5.0_log_res/' + fname_out_main + '/'
 dir_fig = dir_out + 'figures/'
+
 
 #%% Load Data
 ### ======================================
@@ -91,8 +95,13 @@ df_velprofs = df_velprofs.loc[~np.isnan(df_velprofs.Depth_MPt),:]
 if flag_trunc_z1:
     df_velprofs = df_velprofs.loc[~df_velprofs.flag_Z1,:]
 
+#truncate profiles at depth of 1000m/sec
+if flag_vs30_thres:
+    df_velprofs = df_velprofs.loc[df_velprofs.Vs30>=Vs30_thres_min,:]
+
 #reset index
 df_velprofs.reset_index(drop=True, inplace=True)
+
 
 #%% Regression
 ### ======================================
@@ -156,21 +165,19 @@ df_profinfo = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Lat','Lon']
 # Extract posterior samples
 # - - - - - - - - - - - 
 #hyper-parameters
-col_names_hyp = ['r1','s1','s2','s3','sigma_vel']
+col_names_hyp = ['r1','r2','r3','r4','s1','s2','s3','sigma_vel']
 #vel profile parameters
 col_names_vs0 = ['Vs0.%i'%(k) for k in range(n_vel)]
 col_names_k   = ['k.%i'%(k)   for k in range(n_vel)]
 col_names_n   = ['n.%i'%(k)   for k in range(n_vel)]
-col_names_dB  = ['dB.%i'%(k)  for k in range(n_vel)]
-col_names_all = col_names_hyp + col_names_vs0 + col_names_k + col_names_n #+col_names_dB
-    
+col_names_all = col_names_hyp + col_names_vs0 + col_names_k + col_names_n 
+ 
 #extract raw hyper-parameter posterior samples
 stan_posterior = np.stack([stan_fit.stan_variable(c_n) for c_n in col_names_hyp], axis=1)
 #vel profile parameters
 stan_posterior = np.concatenate((stan_posterior, stan_fit.stan_variable('Vs0_p')),  axis=1)
 stan_posterior = np.concatenate((stan_posterior, stan_fit.stan_variable('k_p')), axis=1)
 stan_posterior = np.concatenate((stan_posterior, stan_fit.stan_variable('n_p')), axis=1)
-# stan_posterior = np.concatenate((stan_posterior, stan_fit.stan_variable('dB')),     axis=1)
     
 #save raw-posterior distribution
 df_stan_posterior_raw = pd.DataFrame(stan_posterior, columns = col_names_all)
@@ -179,10 +186,11 @@ df_stan_posterior_raw.to_csv(dir_out + fname_out_main + '_stan_posterior_raw' + 
 # Summarize hyper-parameters
 # - - - - - - - - - - - 
 #summarize posterior distributions of hyper-parameters
-perc_array = np.array([0.05,0.25,0.5,0.75,0.95])
-df_stan_hyp = df_stan_posterior_raw[col_names_hyp].quantile(perc_array)
-df_stan_hyp = df_stan_hyp.append(df_stan_posterior_raw[col_names_hyp].mean(axis = 0), ignore_index=True)
-df_stan_hyp.index = ['prc_%.2f'%(prc) for prc in perc_array]+['mean'] 
+perc_array        = np.array([0.05,0.25,0.5,0.75,0.95])
+df_stan_hyp       = df_stan_posterior_raw[col_names_hyp].quantile(perc_array)
+df_stan_hyp.index = ['prc_%.2f'%(prc) for prc in perc_array]
+#add hyper-parameter mean
+df_stan_hyp.loc['mean',:] = df_stan_posterior_raw[col_names_hyp].mean(axis = 0)
 df_stan_hyp.to_csv(dir_out + fname_out_main + '_stan_hyperparameters' + '.csv', index=True)
 
 #detailed posterior percentiles of posterior distributions
@@ -242,15 +250,19 @@ df_params_summary.to_csv(dir_out + fname_out_main + '_stan_parameters' + '.csv',
 #mean scaling terms
 #k scaling
 r1_new = df_stan_hyp.loc['prc_0.50','r1']
+r2_new = df_stan_hyp.loc['prc_0.50','r2']
+r3_new = df_stan_hyp.loc['prc_0.50','r3']
+r4_new = df_stan_hyp.loc['prc_0.50','r4']
 #n scaling
 s1_new = df_stan_hyp.loc['prc_0.50','s1']
 s2_new = df_stan_hyp.loc['prc_0.50','s2']
 s3_new = df_stan_hyp.loc['prc_0.50','s3']
 #mean profile parameters
-param_k_new   = np.exp( r1_new )
-param_n_new   = 1 + s3_new * sigmoid((np.log(df_velprofs.Vs30.values)-s1_new)*s2_new);
+param_k_new   = np.exp(r1_new / (1. + r2_new * (0.001*df_velprofs.Vs30.values)**-r3_new) - r4_new )
+param_n_new   = 1. + s1_new / (1 + s2_new * (0.001*df_velprofs.Vs30.values)**-s3_new)
 param_a_new   =-1/param_n_new
 param_vs0_new = (param_k_new*(param_a_new+1)*z_star + (1+param_k_new*(30-z_star))**(param_a_new+1) - 1) / (30*(param_a_new+1)*param_k_new) * df_velprofs.Vs30.values
+
 #orignal profile parameters
 param_k_orig   = np.exp( r1_orig*(df_velprofs.Vs30.values)**r2_orig + r3_orig )
 param_n_orig   = 1/( s1_orig*np.exp(s2_orig*df_velprofs.Vs30.values) + s3_orig*np.exp(s4_orig*df_velprofs.Vs30.values) ) 
@@ -355,6 +367,7 @@ vs30_bins = [(0,100),(100,250),(250, 400), (400, 800), (800, 3000)]
 for k, vs30_b in enumerate(vs30_bins):
     i_binned = np.logical_and(df_predict_summary.Vs30 >= vs30_b[0],
                                              df_predict_summary.Vs30 <  vs30_b[1])
+    if i_binned.sum() == 0: continue
     df_predict_summ_binned = df_predict_summary.loc[i_binned,:].reset_index(drop=True)
     
     i_sort    = np.argsort( df_predict_summ_binned.Depth_MPt.values )
@@ -380,15 +393,14 @@ for k, vs30_b in enumerate(vs30_bins):
     ax.invert_yaxis()
     ax.set_title('Residuals versus Depth \n $V_{S30}= [%.i, %.i)$ (m/sec)'%vs30_b, fontsize=30)
     fig.savefig( dir_fig + fname_fig + '.png' )
-    
-    
-    
+
+
 # Parameter Scaling
 # ---------------------------
 vs30_array = np.logspace(np.log10(10), np.log10(2000))
 #scaling relationships
-param_k_scl   = np.full(vs30_array.shape, np.exp(r1_new))
-param_n_scl   = 1 + s3_new * sigmoid((np.log(vs30_array )-s1_new)*s2_new);
+param_n_scl   = 1. + s1_new / (1 + s2_new * (0.001*vs30_array)**-s3_new)
+param_k_scl   = np.exp(r1_new / (1. + (r2_new * (0.001*vs30_array)**-r3_new )) - r4_new )
 param_a_scl   =-1/param_n_scl
 param_vs0_scl = (param_k_scl*(param_a_scl+1)*z_star + (1+param_k_scl*(30-z_star))**(param_a_scl+1) - 1) / (30*(param_a_scl+1)*param_k_scl) * vs30_array 
 
@@ -406,7 +418,7 @@ ax.legend(loc='lower right', fontsize=30)
 ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
-ax.set_ylim([0, 2])
+ax.set_ylim([0, 3])
 ax.set_title(r'$k$ Scaling', fontsize=30)
 fig.tight_layout()
 fig.savefig( dir_fig + fname_fig + '.png' )
@@ -461,10 +473,10 @@ for k, v_id_dsid in enumerate(vel_id_dsid):
 
     #velocity prof information
     vs30 = df_vel.Vs30.values[0]
-    param_k    = np.exp( r1_new )
-    param_n    = 1 + s3_new * sigmoid((np.log(vs30)-s1_new)*s2_new);
-    param_a    =-1/param_n
-    param_vs0  = (param_k*(param_a+1)*z_star + (1+param_k*(30-z_star))**(param_a+1) - 1) / (30*(param_a+1)*param_k) * vs30
+    param_n   = 1. + s1_new / (1 + s2_new * (0.001*vs30)**-s3_new)
+    param_k   = np.exp(r1_new / (1. + (r2_new * (0.001*vs30)**-r3_new )) - r4_new )
+    param_a   =-1/param_n
+    param_vs0 = (param_k*(param_a+1)*z_star + (1+param_k*(30-z_star))**(param_a+1) - 1) / (30*(param_a+1)*param_k) * vs30
 
     #velocity profile
     depth_array = np.concatenate([[0], np.cumsum(df_vel.Thk)])
@@ -492,7 +504,7 @@ for k, v_id_dsid in enumerate(vel_id_dsid):
     ax.set_title(name_vel, fontsize=30)
     fig.tight_layout()
     fig.savefig( dir_fig + fname_vel + '.png' )
-    
+
 
 # Summary regression
 # ---------------------------

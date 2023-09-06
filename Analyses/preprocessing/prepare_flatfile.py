@@ -18,6 +18,8 @@ import numpy.matlib
 from scipy import interpolate as interp
 #statistics libraries
 import pandas as pd
+#geographic coordinates
+import pyproj
 
 #user functions
 #---------------------
@@ -36,7 +38,7 @@ def CalcVS30(depth, vel):
     return vs30
 
 #read general velocity profiles
-def ReadGenProfs(dir_name, fname_vprof_info, flag_header = True, dsid=np.nan, filter_vname='(.*)', dsname='N/A'):
+def ReadGenProfs(dir_name, fname_vprof_info, flag_header=True, sep=',', dsid=np.nan, filter_vname='(.*)', dsname='N/A'):
     
     #read vel profile info
     df_vprof_info = pd.read_excel(fname_vprof_info)
@@ -47,13 +49,13 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header = True, dsid=np.nan, fi
 
     df_v_profs = list()
     for k, (_, df_vp_info) in enumerate(df_vprof_info.iterrows()):
-        print(r'reading prof  %i of %i (%s)'%(k,n_vel,df_vp_info.dataset))
+        print(r'reading prof  %i of %i (%s)'%(k+1,n_vel,df_vp_info.dataset))
         
         #file name
         f_v = df_vp_info.dataset
 
         #read vel profs
-        df_v = pd.read_csv(dir_name+f_v) if flag_header else pd.read_csv(dir_name+f_v, names=('Depth','Vs'))
+        df_v = pd.read_csv(dir_name+f_v, sep=sep) if flag_header else pd.read_csv(dir_name+f_v, names=('Depth','Vs'), sep=sep)
 
         #velocity profile name
         n_v = p.findall(f_v)[0] 
@@ -81,6 +83,9 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header = True, dsid=np.nan, fi
         df_v.loc[:,'DSID']   = dsid
         df_v.loc[:,'DSName'] = dsname
         
+        #max depth
+        df_v.loc[:,'Z_max'] = max(z)
+        
         #flag Z1.0
         df_v.loc[:,'flag_Z1'] = np.cumsum( vs >= 1000 ) >= 1
         
@@ -89,7 +94,6 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header = True, dsid=np.nan, fi
         #midpoint depth
         z_mp = np.convolve(z, np.ones(2), "valid")/2
         df_v.loc[:,'Depth_MPt'] = np.append(np.nan, z_mp)
-        
         #compute vs30 
         df_v.loc[:,'Vs30'] = CalcVS30(df_v.Depth.values, df_v.Vs.values)
         
@@ -97,16 +101,17 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header = True, dsid=np.nan, fi
         df_v.loc[:,['Lat','Lon']] = df_vp_info[['lat','long']].values
         
         #reorder columns
-        df_v = df_v[['DSID','DSName','VelID','VelName','Vs30','Lat','Lon','Depth','Depth_MPt','Thk','Vs','flag_Z1']]
+        df_v = df_v[['DSID','DSName','VelID','VelName','Vs30','Z_max','Lat','Lon','Depth','Depth_MPt','Thk','Vs','flag_Z1']]
 
         #merge dataframes
         df_v_profs.append(df_v)
         
     return pd.concat(df_v_profs, axis=0).reset_index(drop=True)
 
-
 #%% Define Variables
 ### ======================================
+# projection system
+utm_zone = '10S'
 
 # Dataset 09/15/22
 # ---   ---   ---   ---
@@ -123,20 +128,20 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header = True, dsid=np.nan, fi
 # fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20220915/VSPDB/VSPDB.xlsx'
 # filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
 
-# Dataset 12/01/22
-# ---   ---   ---   ---
-#Jian profiles
-dir_velprofs_Jian     = '../../Raw_files/Datasets_20221201/Jian/dataset/'
-fname_vprof_info_Jian = '../../Raw_files/Datasets_20221201/Jian/Jian.xlsx'
-filter_vname_Jian     = 'profile_(.*)\.txt'
-#Boore profiles
-dir_velprofs_Boore     = '../../Raw_files/Datasets_20221201/Boore/dataset/'
-fname_vprof_info_Boore = '../../Raw_files/Datasets_20221201/Boore/Boore.xlsx'
-filter_vname_Boore     = '(.*)\.txt'
-#VSPDB_Vs_Profiles
-dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20221201/VSPDB/dataset/'
-fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20221201/VSPDB/VSPDB.xlsx'
-filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
+# # Dataset 12/01/22
+# # ---   ---   ---   ---
+# #Jian profiles
+# dir_velprofs_Jian     = '../../Raw_files/Datasets_20221201/Jian/dataset/'
+# fname_vprof_info_Jian = '../../Raw_files/Datasets_20221201/Jian/Jian.xlsx'
+# filter_vname_Jian     = 'profile_(.*)\.txt'
+# #Boore profiles
+# dir_velprofs_Boore     = '../../Raw_files/Datasets_20221201/Boore/dataset/'
+# fname_vprof_info_Boore = '../../Raw_files/Datasets_20221201/Boore/Boore.xlsx'
+# filter_vname_Boore     = '(.*)\.txt'
+# #VSPDB_Vs_Profiles
+# dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20221201/VSPDB/dataset/'
+# fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20221201/VSPDB/VSPDB.xlsx'
+# filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
 
 # # Dataset 12/05/22
 # # ---   ---   ---   ---
@@ -153,34 +158,76 @@ filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
 # fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20221205/VSPDB/VSPDB.xlsx'
 # filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
 
+# # Dataset 02/09/23
+# # ---   ---   ---   ---
+# #Jian profiles
+# dir_velprofs_Jian     = '../../Raw_files/Datasets_20230209/Jian/dataset/'
+# fname_vprof_info_Jian = '../../Raw_files/Datasets_20230209/Jian/Jian.xlsx'
+# filter_vname_Jian     = 'profile_(.*)\.txt'
+# #Boore profiles
+# dir_velprofs_Boore     = '../../Raw_files/Datasets_20230209/Boore/dataset/'
+# fname_vprof_info_Boore = '../../Raw_files/Datasets_20230209/Boore/Boore.xlsx'
+# filter_vname_Boore     = '(.*)\.txt'
+# #VSPDB_Vs_Profiles
+# dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20230209/VSPDB/dataset/'
+# fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20230209/VSPDB/VSPDB.xlsx'
+# filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
+
+# Dataset 08/30/23
+# ---   ---   ---   ---
+#Jian profiles
+dir_velprofs_Jian     = '../../Raw_files/Datasets_20230930/Jian/dataset/'
+fname_vprof_info_Jian = '../../Raw_files/Datasets_20230930/Jian.xlsx'
+filter_vname_Jian     = 'profile_(.*)\.txt'
+#VSPDB_Vs_Profiles
+dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20230930/VSPDB/dataset/'
+fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20230930/VSPDB.xlsx'
+filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
+
 #output directory
 # dir_out = '../../Data/vel_profiles/'
 dir_out = '../../Data/vel_profiles_dataset/'
 
 #%% Load Data
 ### ======================================
+# load velocity profiles
+# ----   ----   ----   ----   ----
 df_vel_profs = []
 
 #read Jian profiles
 print("Reading Jian's profiles")
 df_vel_profs.append( ReadGenProfs(dir_name=dir_velprofs_Jian,  fname_vprof_info=fname_vprof_info_Jian,
-                                  dsid=1, dsname='Jian', filter_vname=filter_vname_Jian) )
-#read Boore profiles
-print("Reading Boore's profiles")
-df_vel_profs.append( ReadGenProfs(dir_name=dir_velprofs_Boore, fname_vprof_info=fname_vprof_info_Boore,
-                                  dsid=2, dsname='Boore', filter_vname=filter_vname_Boore, flag_header=False) )
+                                  dsid=1, dsname='Jian', filter_vname=filter_vname_Jian,
+                                  flag_header=False, sep='\t') )
+
 #read VSPDB profiles
 print("Reading VSPDB profiles")
 df_vel_profs.append( ReadGenProfs(dir_name=dir_velprofs_VSPDB, fname_vprof_info=fname_vprof_info_VSPDB, 
-                                  dsid=3, dsname='VSPDB', filter_vname=filter_vname_VSPDB) )
+                                  dsid=3, dsname='VSPDB', filter_vname=filter_vname_VSPDB,
+                                  flag_header=False, sep='\t') )
 
 #concatinate all data
 df_vel_profs = pd.concat(df_vel_profs, axis=0).reset_index(drop=True)
 
 #create velocity profile info
-_, vel_idx    = np.unique(df_vel_profs[['DSID','VelID']].values, axis=0, return_index=True)
-n_vel         = vel_idx.shape[0]
-df_profs_info = df_vel_profs[['DSID','DSName','VelID','VelName','Vs30','Lat','Lon']].iloc[vel_idx,:].reset_index(drop=True)
+_, vel_idx, vel_inv = np.unique(df_vel_profs[['DSID','VelID']].values, axis=0, return_index=True, return_inverse=True)
+n_vel               = vel_idx.shape[0]
+df_profs_info       = df_vel_profs[['DSID','DSName','VelID','VelName','Vs30','Lat','Lon']].iloc[vel_idx,:].reset_index(drop=True)
+
+
+# projection system
+# ----   ----   ----   ----   ----
+#projection system
+utmProj = pyproj.Proj("+proj=utm +zone="+utm_zone[:2]+" +ellps=WGS84 +datum=WGS84 +units=km +no_defs")
+
+#compute utm coordinates
+v_X  = np.array([utmProj(v.Lon, v.Lat)   for _, v in df_profs_info.iterrows()])  
+
+#store utm coordinates
+df_profs_info.loc[:,['X','Y']] = v_X
+df_profs_info.loc[:,'UTMzone'] = utm_zone
+df_vel_profs.loc[:,['X','Y']] = v_X[vel_inv,:]
+df_vel_profs.loc[:,'UTMzone'] = utm_zone
 
 
 #%% Save Data
@@ -190,11 +237,13 @@ if not os.path.isdir(dir_out): pathlib.Path(dir_out).mkdir(parents=True, exist_o
 #save all profiles
 df_vel_profs.to_csv( dir_out+'all_velocity_profles.csv', index=False )
 #save Jian profiles
-df_vel_profs.loc[df_vel_profs.DSID==1,].to_csv( dir_out+ 'Jian_velocity_profles.csv',     index=False )
+if np.any(df_vel_profs.DSID==1): df_vel_profs.loc[df_vel_profs.DSID==1,].to_csv( dir_out+ 'Jian_velocity_profles.csv',     index=False )
 #save Boore profiles
-df_vel_profs.loc[df_vel_profs.DSID==2,].to_csv( dir_out+ 'Boore_velocity_profles.csv',    index=False )
+if np.any(df_vel_profs.DSID==2): df_vel_profs.loc[df_vel_profs.DSID==2,].to_csv( dir_out+ 'Boore_velocity_profles.csv',    index=False )
 #save VSPDB profiles
-df_vel_profs.loc[df_vel_profs.DSID==3,].to_csv( dir_out+ 'VSPDB_velocity_profles.csv',    index=False )
+if np.any(df_vel_profs.DSID==3): df_vel_profs.loc[df_vel_profs.DSID==3,].to_csv( dir_out+ 'VSPDB_velocity_profles.csv',    index=False )
+#save Jian and VSPDB profiles
+if np.any(np.isin(df_vel_profs.DSID,[1,3])): df_vel_profs.loc[np.isin(df_vel_profs.DSID,[1,3]),].to_csv( dir_out+ 'Jian_VSPDB_velocity_profles.csv', index=False )
 
 #save velocity profile info
 df_profs_info.to_csv( dir_out+'all_velocity_profles_info.csv', index=False )
