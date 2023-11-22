@@ -58,7 +58,7 @@ s3_orig =-10.827
 s4_orig =-7.6187*10**(-3)
 
 #regression info
-fname_stan_model = '../stan_lib/jian_fun_glob_reg_upd7.0_log_res.stan'
+fname_stan_model = '../stan_lib/jian_fun_glob_reg_upd6.1_log_res.stan'
 #iteration samples
 n_iter_warmup   = 50000
 n_iter_sampling = 50000
@@ -73,8 +73,8 @@ max_treedepth   = 10
 fname_flatfile = '../../Data/vel_profiles_dataset/all_velocity_profles.csv'
 
 #flag truncate
-flag_trunc_z1 = False
-# flag_trunc_z1 = True
+# flag_trunc_z1 = False
+flag_trunc_z1 = True
 
 #Vs30 minimum threshold
 flag_vs30_thres = True
@@ -85,7 +85,7 @@ Vs30_thres_min = 100
 # fname_out_main = 'Jian'
 fname_out_main = 'all_trunc'
 #output directory
-dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd7.0_log_res/' + fname_out_main + '/'
+dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd6.1_log_res/' + fname_out_main + '/'
 dir_fig = dir_out + 'figures/'
 
 
@@ -104,6 +104,12 @@ if flag_trunc_z1:
 #truncate profiles at depth of 1000m/sec
 if flag_vs30_thres:
     df_velprofs = df_velprofs.loc[df_velprofs.Vs30>=Vs30_thres_min,:]
+
+#porfiles to exclude
+df_velprofs = df_velprofs.loc[~np.logical_and(df_velprofs.DSID==1, df_velprofs.VelID==9), :]
+df_velprofs = df_velprofs.loc[~np.logical_and(df_velprofs.DSID==3, df_velprofs.VelID==56),:]
+df_velprofs = df_velprofs.loc[~np.logical_and(df_velprofs.DSID==3, df_velprofs.VelID==57),:]
+df_velprofs = df_velprofs.loc[~np.logical_and(df_velprofs.DSID==3, df_velprofs.VelID==31),:]
 
 #reset index
 df_velprofs.reset_index(drop=True, inplace=True)
@@ -163,15 +169,15 @@ for f_j in fname_json: os.remove(dir_out + f_j)
 #%% Postprocessing
 ### ======================================
 #initiaize flatfile for sumamry of non-erg coefficinets and residuals
-df_velinfo  = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Z_max','Lat','Lon','X','Y','Depth_MPt','Thk', 'Vs', 'flag_Z1']]
-df_profinfo = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Z_max','Lat','Lon','X','Y']].iloc[vel_idx,:].reset_index(drop=True)
+df_velinfo  = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Lat','Lon','Depth_MPt','Thk', 'Vs', 'flag_Z1']]
+df_profinfo = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Lat','Lon']].iloc[vel_idx,:].reset_index(drop=True)
 
 # process regression output
 # ---   ---   ---   ---
 # Extract posterior samples
 # - - - - - - - - - - - 
 #hyper-parameters
-col_names_hyp = ['logVs30mid','logVs30scl','r1','r2','s2','sigma_vel']
+col_names_hyp = ['r1','r2','r3','r4','s1','s2','s3','sigma_vel']
 #vel profile parameters
 col_names_vs0 = ['Vs0.%i'%(k) for k in range(n_vel)]
 col_names_k   = ['k.%i'%(k)   for k in range(n_vel)]
@@ -272,18 +278,19 @@ df_params_summary.to_csv(dir_out + fname_out_main + '_stan_parameters' + '.csv',
 # Velocity profile prediction
 # - - - - - - - - - - -
 #mean scaling terms
-logVs30mid_new = df_stan_hyp.loc['prc0.50','logVs30mid']
-logVs30scl_new = df_stan_hyp.loc['prc0.50','logVs30scl']
 #k scaling
 r1_new = df_stan_hyp.loc['prc0.50','r1']
 r2_new = df_stan_hyp.loc['prc0.50','r2']
+r3_new = df_stan_hyp.loc['prc0.50','r3']
+r4_new = df_stan_hyp.loc['prc0.50','r4']
 #n scaling
 s2_new = df_stan_hyp.loc['prc0.50','s2']
-
+s3_new = df_stan_hyp.loc['prc0.50','s3']
+s4_new = df_stan_hyp.loc['prc0.50','s4']
 #mean profile parameters
-param_n_new     =         1      + s2_new * sigmoid((np.log(df_velprofs.Vs30.values)-logVs30mid_new)*logVs30scl_new)
-param_a_new     =-1/param_n_new
-param_k_new     = np.exp( r1_new + r2_new * sigmoid((np.log(df_velprofs.Vs30.values)-logVs30mid_new)*logVs30scl_new) )
+param_k_new   = np.exp( r1_new + r2_new * sigmoid((np.log(df_velprofs.Vs30.values)-r3_new)*r4_new) )
+param_n_new   =         1      + s2_new * sigmoid((np.log(df_velprofs.Vs30.values)-s3_new)*s4_new);
+param_a_new   =-1/param_n_new
 param_vs0_new   = np.array([calcVs0(vs30, k, n, z_star) for (vs30, n, k) in zip(df_velprofs.Vs30.values, param_n_new, param_k_new)])
 
 #orignal profile parameters
@@ -420,11 +427,11 @@ for k, vs30_b in enumerate(vs30_bins):
 
 # Parameter Scaling
 # ---------------------------
-vs30_array = np.logspace(np.log10(10), np.log10(3000))
+vs30_array = np.logspace(np.log10(10), np.log10(2000))
 #scaling relationships
-param_n_scl   =         1      + s2_new * sigmoid((np.log(vs30_array)-logVs30mid_new)*logVs30scl_new)
+param_k_scl   = np.exp( r1_new + r2_new * sigmoid((np.log(vs30_array)-r3_new)*r4_new ) )
+param_n_scl   =         1.     + s2_new * sigmoid((np.log(vs30_array)-s3_new)*s4_new)
 param_a_scl   =-1/param_n_scl
-param_k_scl   = np.exp( r1_new + r2_new * sigmoid((np.log(vs30_array)-logVs30mid_new)*logVs30scl_new) )
 param_vs0_scl = np.array([calcVs0(vs30, k, n, z_star) for (vs30, n, k) in zip(vs30_array, param_n_scl, param_k_scl)])
 
 #scaling k
@@ -438,7 +445,7 @@ hl = ax.errorbar(df_params_summary.Vs30, df_params_summary.param_k_med,
 #edit properties
 ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=30)
 ax.set_ylabel(r'$k$',       fontsize=30)
-ax.legend(loc='upper left', fontsize=30)
+ax.legend(loc='lower right', fontsize=30)
 ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
@@ -458,7 +465,7 @@ hl = ax.errorbar(df_params_summary.Vs30, df_params_summary.param_n_med,
 #edit properties
 ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=30)
 ax.set_ylabel(r'$n$',       fontsize=30)
-ax.legend(loc='upper left', fontsize=30)
+ax.legend(loc='lower right', fontsize=30)
 ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
@@ -500,8 +507,8 @@ for k, v_id_dsid in enumerate(vel_id_dsid):
 
     #velocity prof information
     vs30 = df_vel.Vs30.values[0]
-    param_k   = np.exp( r1_new + r2_new * sigmoid((np.log(vs30)-logVs30mid_new)*logVs30scl_new) )
-    param_n   =         1      + s2_new * sigmoid((np.log(vs30)-logVs30mid_new)*logVs30scl_new)
+    param_k   = np.exp( r1_new + r2_new * sigmoid((np.log(vs30)-r3_new)*r4_new) )
+    param_n   =         1      + s2_new * sigmoid((np.log(vs30)-s3_new)*s4_new)
     param_a   =-1/param_n
     param_vs0 = calcVs0(vs30, param_k, param_n, z_star)
 
@@ -525,8 +532,8 @@ for k, v_id_dsid in enumerate(vel_id_dsid):
     ax.tick_params(axis='y', labelsize=25)
     ax.xaxis.set_tick_params(which='major', size=10, width=2, direction='in', top='on')
     ax.yaxis.set_tick_params(which='major', size=10, width=2, direction='in', right='on')
-    ax.set_xlim([0, 2000])
-    ax.set_ylim([0, 200]) if flag_trunc_z1 else ax.set_ylim([0, 500])
+    ax.set_xlim([0, 1200])
+    ax.set_ylim([0, 200])
     ax.invert_yaxis()
     ax.set_title(name_vel, fontsize=30)
     fig.tight_layout()

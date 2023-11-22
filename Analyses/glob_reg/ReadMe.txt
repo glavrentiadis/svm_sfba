@@ -20,6 +20,32 @@ fit_glob_vel_models_Jian_upd5.0_log_res.py      Based on fit_glob_vel_models_Jia
 fit_glob_vel_models_Jian_upd5.0dB_log_res.py    Based on fit_glob_vel_models_Jian_upd5.0_log_res.py with a between profile
                                                 random term.
 fit_glob_vel_model_Jian_upd6.0_log_res.py	Global regression with logistic scaling for k and n as a function of Vs30
+fit_glob_vel_model_Jian_upd6.1_log_res.py	Global regression with logistic scaling for k and n as a function of Vs30
+						reformulated equations
 fit_glob_vel_model_Jian_upd7.0_log_res.py       Global regression with same logistic scaling for k and n same midpoint and 
                                                 scale, different amplitude
-
+fit_glob_vel_model_Jian_upd7.0dBr_log_res.py	Based on fit_glob_vel_model_Jian_upd7.0_log_res.py with k random term
+fit_glob_vel_model_Jian_upd7.0GPdBr_log_res.py	Based on fit_glob_vel_model_Jian_upd7.0_log_res.py with k spatially varying 
+						term
+fit_glob_vel_model_Jian_upd7.1dBr_log_res.py	Based on fit_glob_vel_model_Jian_upd7.0_log_res.py with k random term having
+						logVs30mid and logVs30scl fixed
+fit_glob_vel_model_Jian_upd7.1GPdBr_log_res.py	Based on fit_glob_vel_model_Jian_upd7.0_log_res.py with k spatially varying 
+						term having logVs30mid and logVs30scl fixed
+fit_glob_vel_model_Jian_upd7.2dBr_log_res.py 	Based on fit_glob_vel_model_Jian_upd7.0_log_res.py with k random term having
+						logVs30mid, logVs30scl, r1, r2, and s2 fixed
+fit_glob_vel_model_Jian_upd7.2GPdBr_log_res.py 	Based on fit_glob_vel_model_Jian_upd7.0_log_res.py with k spatially varying 
+						term having logVs30mid, logVs30scl, r1, r2, and s2 fixed
+fit_glob_vel_model_Jian_upd7.3dBr_log_res.py	Based on fit_glob_vel_model_Jian_upd7.0_log_res.py with k random term having
+						logVs30mid, logVs30scl, r1, r2, and s2 fixed, but inlude delta_r1 and delta_r2 
+						adustments
+fit_glob_vel_model_Jian_upd7.3GPdBr_log_res.py	Based on fit_glob_vel_model_Jian_upd7.0_log_res.py with k spatially varying 
+						term having logVs30mid, logVs30scl, r1, r2, and s2 fixed, but inlude delta_r1 
+						and delta_r2 adustments
+fit_glob_vel_model_Jian_upd7.4dBr_log_res.py	Based on fit_glob_vel_model_Jian_upd7.0_log_res.py with k random term having
+						logVs30mid, logVs30scl and s2 fixed, redetermining r1 and r2
+fit_glob_vel_model_Jian_upd7.4GPdBr_log_res.py	Based on fit_glob_vel_model_Jian_upd7.0_log_res.py with k spatially varying 
+						term having logVs30mid, logVs30scl, redetermining r1 and r2
+fit_glob_vel_model_Jian_upd7.5GPdBr_log_res.py	Based on fit_glob_vel_model_Jian_upd7.0_log_res.py with fixed n and spatially 
+						varying k through dBr, redetermining r1, r2, r3, and r4
+fit_glob_vel_model_Jian_upd8.0_log_res.py       Global regression with same logistic scaling for k and n same midpoint and 
+                                                scale, different amplitude					

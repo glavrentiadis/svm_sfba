@@ -57,8 +57,12 @@ s2_orig =-1.0521*10**(-4)
 s3_orig =-10.827
 s4_orig =-7.6187*10**(-3)
 
+#proposed model (fixed coefficients) 
+logVs30mid_fxd = 6.0361
+logVs30scl_fxd = 0.1473
+
 #regression info
-fname_stan_model = '../stan_lib/jian_fun_glob_reg_upd7.0_log_res.stan'
+fname_stan_model = '../stan_lib/jian_fun_glob_reg_upd8.1_log_res.stan'
 #iteration samples
 n_iter_warmup   = 50000
 n_iter_sampling = 50000
@@ -85,7 +89,7 @@ Vs30_thres_min = 100
 # fname_out_main = 'Jian'
 fname_out_main = 'all_trunc'
 #output directory
-dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd7.0_log_res/' + fname_out_main + '/'
+dir_out = '../../Data/global_reg/bayesian_fit/JianFunUpd8.1_log_res/' + fname_out_main + '/'
 dir_fig = dir_out + 'figures/'
 
 
@@ -134,6 +138,8 @@ stan_data = {'N':       len(df_velprofs),
              'Vs30':    df_velprofs.Vs30.values[vel_idx],
              'Z':       df_velprofs.Depth_MPt.values,
              'Y':       np.log(df_velprofs.Vs.values),
+             'logVs30mid_fxd': logVs30mid_fxd,
+             'logVs30scl_fxd': logVs30scl_fxd
             }
 #write as json file
 fname_stan_data = dir_out +  'gobal_reg_stan_data' + '.json'
@@ -171,7 +177,7 @@ df_profinfo = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Z_max','Lat
 # Extract posterior samples
 # - - - - - - - - - - - 
 #hyper-parameters
-col_names_hyp = ['logVs30mid','logVs30scl','r1','r2','s2','sigma_vel']
+col_names_hyp = ['logVs30mid','logVs30scl','r1','r2','r3','s2','sigma_vel']
 #vel profile parameters
 col_names_vs0 = ['Vs0.%i'%(k) for k in range(n_vel)]
 col_names_k   = ['k.%i'%(k)   for k in range(n_vel)]
@@ -277,13 +283,17 @@ logVs30scl_new = df_stan_hyp.loc['prc0.50','logVs30scl']
 #k scaling
 r1_new = df_stan_hyp.loc['prc0.50','r1']
 r2_new = df_stan_hyp.loc['prc0.50','r2']
+r3_new = df_stan_hyp.loc['prc0.50','r3']
 #n scaling
 s2_new = df_stan_hyp.loc['prc0.50','s2']
 
+#vs30 scaling
+lnVs30s = (np.log(df_velprofs.Vs30.values)-logVs30mid_new)/logVs30scl_new
+
 #mean profile parameters
-param_n_new     =         1      + s2_new * sigmoid((np.log(df_velprofs.Vs30.values)-logVs30mid_new)*logVs30scl_new)
+param_n_new     =         1      + s2_new * sigmoid(lnVs30s)
 param_a_new     =-1/param_n_new
-param_k_new     = np.exp( r1_new + r2_new * sigmoid((np.log(df_velprofs.Vs30.values)-logVs30mid_new)*logVs30scl_new) )
+param_k_new     = np.exp( r1_new + r2_new * sigmoid(lnVs30s) + r3_new * logVs30scl_new * np.log(1 + np.exp(lnVs30s)) )
 param_vs0_new   = np.array([calcVs0(vs30, k, n, z_star) for (vs30, n, k) in zip(df_velprofs.Vs30.values, param_n_new, param_k_new)])
 
 #orignal profile parameters
@@ -420,11 +430,12 @@ for k, vs30_b in enumerate(vs30_bins):
 
 # Parameter Scaling
 # ---------------------------
-vs30_array = np.logspace(np.log10(10), np.log10(3000))
+vs30_array    = np.logspace(np.log10(10), np.log10(3000))
+lnVs30s_array = (np.log(vs30_array)-logVs30mid_new) / logVs30scl_new
 #scaling relationships
-param_n_scl   =         1      + s2_new * sigmoid((np.log(vs30_array)-logVs30mid_new)*logVs30scl_new)
+param_n_scl   =         1      + s2_new * sigmoid( lnVs30s_array )
+param_k_scl   = np.exp( r1_new + r2_new * sigmoid( lnVs30s_array ) + r3_new * logVs30scl_new * np.log(1 + np.exp(lnVs30s_array)) )
 param_a_scl   =-1/param_n_scl
-param_k_scl   = np.exp( r1_new + r2_new * sigmoid((np.log(vs30_array)-logVs30mid_new)*logVs30scl_new) )
 param_vs0_scl = np.array([calcVs0(vs30, k, n, z_star) for (vs30, n, k) in zip(vs30_array, param_n_scl, param_k_scl)])
 
 #scaling k
@@ -499,9 +510,10 @@ for k, v_id_dsid in enumerate(vel_id_dsid):
     fname_vel = (fname_out_main + '_vel_prof_' + name_vel).replace(' ','_')
 
     #velocity prof information
-    vs30 = df_vel.Vs30.values[0]
-    param_k   = np.exp( r1_new + r2_new * sigmoid((np.log(vs30)-logVs30mid_new)*logVs30scl_new) )
-    param_n   =         1      + s2_new * sigmoid((np.log(vs30)-logVs30mid_new)*logVs30scl_new)
+    vs30    = df_vel.Vs30.values[0]
+    lnVs30s = (np.log(vs30)-logVs30mid_new)/logVs30scl_new
+    param_n   =         1      + s2_new * sigmoid(lnVs30s)
+    param_k   = np.exp( r1_new + r2_new * sigmoid(lnVs30s) + r3_new * logVs30scl_new * np.log( 1 + np.exp(lnVs30s) ) )
     param_a   =-1/param_n
     param_vs0 = calcVs0(vs30, param_k, param_n, z_star)
 

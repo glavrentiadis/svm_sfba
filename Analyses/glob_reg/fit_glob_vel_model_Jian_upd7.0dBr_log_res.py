@@ -31,7 +31,13 @@ sys.path.insert(0,'../python_lib/plotting')
 import pylib_contour_plots as pycplt
 def sigmoid(x):
   return 1 / (1 + np.exp(-x))
-
+def calcVs0(vs30, k, n, z_star=2.5):
+    #compute a
+    a =-1/n
+    #compute Vs0
+    vs0 = (z_star + 1/k * np.log(1+k*(30-z_star))) if np.abs(n-1) < 1e-9 else (k*(a+1)*z_star + (1+k*(30-z_star))**(a+1) - 1) / ((a+1)*k)
+    vs0 *= vs30/30
+    return vs0
 
 #%% Define Variables
 ### ======================================
@@ -147,7 +153,7 @@ stan_model.compile(force=True)
 stan_fit = stan_model.sample(data=fname_stan_data, chains=n_chains, 
                              iter_warmup=n_iter_warmup, iter_sampling=n_iter_sampling,
                              seed=1, refresh=10, max_treedepth=max_treedepth, adapt_delta=adapt_delta,
-                             show_progress=True,  output_dir=dir_out+'stan_fit/')
+                             show_progress=True,  show_console=True, output_dir=dir_out+'stan_fit/')
 
 #delete json files
 fname_dir = np.array( os.listdir(dir_out) )
@@ -159,21 +165,21 @@ for f_j in fname_json: os.remove(dir_out + f_j)
 #%% Postprocessing
 ### ======================================
 #initiaize flatfile for sumamry of non-erg coefficinets and residuals
-df_velinfo  = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Lat','Lon','Depth_MPt','Thk', 'Vs', 'flag_Z1']]
-df_profinfo = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Lat','Lon']].iloc[vel_idx,:].reset_index(drop=True)
+df_velinfo  = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Z_max','Lat','Lon','X','Y','Depth_MPt','Thk', 'Vs', 'flag_Z1']]
+df_profinfo = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Z_max','Lat','Lon','X','Y']].iloc[vel_idx,:].reset_index(drop=True)
 
 # process regression output
 # ---   ---   ---   ---
 # Extract posterior samples
 # - - - - - - - - - - - 
 #hyper-parameters
-col_names_hyp = ['logVs30mid','logVs30scl','r1','r2','s2','sigma_vel']
+col_names_hyp = ['logVs30mid','logVs30scl','r1','r2','s2','sigma_vel','tau_rdB']
 #vel profile parameters
 col_names_vs0 = ['Vs0.%i'%(k)  for k in range(n_vel)]
 col_names_k   = ['k.%i'%(k)    for k in range(n_vel)]
 col_names_n   = ['n.%i'%(k)    for k in range(n_vel)]
-col_names_dBr = ['rdB.%i'%(k)  for k in range(n_vel)]
-col_names_all = col_names_hyp + col_names_vs0 + col_names_k + col_names_n + col_names_dBr
+col_names_rdB = ['rdB.%i'%(k)  for k in range(n_vel)]
+col_names_all = col_names_hyp + col_names_vs0 + col_names_k + col_names_n + col_names_rdB
  
 #extract raw hyper-parameter posterior samples
 stan_posterior = np.stack([stan_fit.stan_variable(c_n) for c_n in col_names_hyp], axis=1)
@@ -181,7 +187,8 @@ stan_posterior = np.stack([stan_fit.stan_variable(c_n) for c_n in col_names_hyp]
 stan_posterior = np.concatenate((stan_posterior, stan_fit.stan_variable('Vs0_p')),  axis=1)
 stan_posterior = np.concatenate((stan_posterior, stan_fit.stan_variable('k_p')), axis=1)
 stan_posterior = np.concatenate((stan_posterior, stan_fit.stan_variable('n_p')), axis=1)
-    
+stan_posterior = np.concatenate((stan_posterior, stan_fit.stan_variable('rdB')), axis=1)
+
 #save raw-posterior distribution
 df_stan_posterior_raw = pd.DataFrame(stan_posterior, columns = col_names_all)
 df_stan_posterior_raw.to_csv(dir_out + fname_out_main + '_stan_posterior_raw' + '.csv', index=False)
@@ -225,12 +232,6 @@ param_n_mu  = np.array([              df_stan_posterior_raw.loc[:,f'n.{k}'].mean
 param_n_sig = np.array([              df_stan_posterior_raw.loc[:,f'n.{k}'].std()    for k in range(n_vel)])
 param_n_p16 = np.array([ np.quantile( df_stan_posterior_raw.loc[:,f'n.{k}'], 0.16)   for k in range(n_vel)])
 param_n_p84 = np.array([ np.quantile( df_stan_posterior_raw.loc[:,f'n.{k}'], 0.84)   for k in range(n_vel)])
-# dB_r
-param_dBr_med = np.array([              df_stan_posterior_raw.loc[:,f'r_dB.{k}'].median() for k in range(n_vel)])
-param_dBr_mu  = np.array([              df_stan_posterior_raw.loc[:,f'r_dB.{k}'].mean()   for k in range(n_vel)])
-param_dBr_sig = np.array([              df_stan_posterior_raw.loc[:,f'r_dB.{k}'].std()    for k in range(n_vel)])
-param_dBr_p16 = np.array([ np.quantile( df_stan_posterior_raw.loc[:,f'r_dB.{k}'], 0.16)   for k in range(n_vel)])
-param_dBr_p84 = np.array([ np.quantile( df_stan_posterior_raw.loc[:,f'r_dB.{k}'], 0.84)   for k in range(n_vel)])
 
 #aleatory variability
 param_sigma_vel_mu  = np.array([             df_stan_posterior_raw.sigma_vel.mean()]   * n_vel)
@@ -238,6 +239,20 @@ param_sigma_vel_med = np.array([             df_stan_posterior_raw.sigma_vel.med
 param_sigma_vel_sig = np.array([             df_stan_posterior_raw.sigma_vel.std()]    * n_vel)
 param_sigma_vel_p16 = np.array([np.quantile( df_stan_posterior_raw.sigma_vel, 0.16)]   * n_vel)
 param_sigma_vel_p84 = np.array([np.quantile( df_stan_posterior_raw.sigma_vel, 0.84)]   * n_vel)
+
+#between profile variability
+param_tau_rdB_mu  = np.array([             df_stan_posterior_raw.tau_rdB.mean()]   * n_vel)
+param_tau_rdB_med = np.array([             df_stan_posterior_raw.tau_rdB.median()] * n_vel)
+param_tau_rdB_sig = np.array([             df_stan_posterior_raw.tau_rdB.std()]    * n_vel)
+param_tau_rdB_p16 = np.array([np.quantile( df_stan_posterior_raw.tau_rdB, 0.16)]   * n_vel)
+param_tau_rdB_p84 = np.array([np.quantile( df_stan_posterior_raw.tau_rdB, 0.84)]   * n_vel)
+# dB_r
+param_rdB_med = np.array([              df_stan_posterior_raw.loc[:,f'rdB.{k}'].median() for k in range(n_vel)])
+param_rdB_mu  = np.array([              df_stan_posterior_raw.loc[:,f'rdB.{k}'].mean()   for k in range(n_vel)])
+param_rdB_sig = np.array([              df_stan_posterior_raw.loc[:,f'rdB.{k}'].std()    for k in range(n_vel)])
+param_rdB_p16 = np.array([ np.quantile( df_stan_posterior_raw.loc[:,f'rdB.{k}'], 0.16)   for k in range(n_vel)])
+param_rdB_p84 = np.array([ np.quantile( df_stan_posterior_raw.loc[:,f'rdB.{k}'], 0.84)   for k in range(n_vel)])
+
 
 #summarize parameters
 params_summary = np.vstack((param_vs0_mu,
@@ -255,23 +270,29 @@ params_summary = np.vstack((param_vs0_mu,
                             param_vs0_p84,
                             param_k_p84, 
                             param_n_p84,
-                            param_dBr_mu,
-                            param_dBr_med,
-                            param_dBr_sig,
-                            param_dBr_p16,
-                            param_dBr_p84,
+                            param_rdB_mu,
+                            param_rdB_med,
+                            param_rdB_sig,
+                            param_rdB_p16,
+                            param_rdB_p84,
                             param_sigma_vel_mu,
                             param_sigma_vel_med,
                             param_sigma_vel_sig, 
                             param_sigma_vel_p16,
-                            param_sigma_vel_p84 )).T
+                            param_sigma_vel_p84,
+                            param_tau_rdB_mu,
+                            param_tau_rdB_med,
+                            param_tau_rdB_sig, 
+                            param_tau_rdB_p16,
+                            param_tau_rdB_p84 )).T
 columns_names = ['param_vs0_mean',    'param_k_mean',    'param_n_mean',
                  'param_vs0_med',     'param_k_med',     'param_n_med',
                  'param_vs0_std',     'param_k_std',     'param_n_std',
                  'param_vs0_prc0.16', 'param_k_prc0.16', 'param_n_prc0.16',
                  'param_vs0_prc0.84', 'param_k_prc0.84', 'param_n_prc0.84',
-                 'param_dBr_mean',    'param_dBr_med',   'param_dBr_std',   'param_dBr_prc0.16', 'param_dBr_prc0.84',              
-                 'sigma_vel_mean',    'sigma_vel_med',   'sigma_vel_std',   'sigma_vel_prc0.16', 'sigma_vel_prc0.84']
+                 'param_rdB_mean',    'param_rdB_med',   'param_rdB_std',   'param_rdB_prc0.16', 'param_rdB_prc0.84',              
+                 'sigma_vel_mean',    'sigma_vel_med',   'sigma_vel_std',   'sigma_vel_prc0.16', 'sigma_vel_prc0.84',
+                 'tau_rdB_mean',      'tau_rdB_med',     'tau_rdB_std',     'tau_rdB_prc0.16',   'tau_rdB_prc0.84']
 df_params_summary = pd.DataFrame(params_summary, columns = columns_names, index=df_profinfo.index)
 #create dataframe with parameters summary
 df_params_summary = pd.merge(df_profinfo, df_params_summary, how='right', left_index=True, right_index=True)
@@ -289,26 +310,26 @@ r2_new = df_stan_hyp.loc['prc0.50','r2']
 #n scaling
 s2_new = df_stan_hyp.loc['prc0.50','s2']
 #between event term
-dB_r_new = param_dBr_med
+r_dB_new = param_rdB_med
+
 #mean profile parameters
-param_k_new   = np.exp( r1_new + r2_new * sigmoid((np.log(df_velprofs.Vs30.values)-logVs30mid_new)*logVs30scl_new) )
-param_n_new   =         1      + s2_new * sigmoid((np.log(df_velprofs.Vs30.values)-logVs30mid_new)*logVs30scl_new)
-param_a_new   =-1/param_n_new
-param_vs0_new = (param_k_new*(param_a_new+1)*z_star + (1+param_k_new*(30-z_star))**(param_a_new+1) - 1) / (30*(param_a_new+1)*param_k_new) * df_velprofs.Vs30.values
+param_n_new     =         1      + s2_new * sigmoid((np.log(df_velprofs.Vs30.values)-logVs30mid_new)*logVs30scl_new)
+param_a_new     =-1/param_n_new
+param_k_new     = np.exp( r1_new + r2_new * sigmoid((np.log(df_velprofs.Vs30.values)-logVs30mid_new)*logVs30scl_new) )
+param_kdB_new   = param_k_new * np.exp(r_dB_new[vel_inv])
+param_vs0_new   = np.array([calcVs0(vs30, k, n, z_star) for (vs30, n, k) in zip(df_velprofs.Vs30.values, param_n_new, param_k_new)])
+param_vs0dB_new = np.array([calcVs0(vs30, k, n, z_star) for (vs30, n, k) in zip(df_velprofs.Vs30.values, param_n_new, param_kdB_new)])
 
 #orignal profile parameters
 param_k_orig   = np.exp( r1_orig*(df_velprofs.Vs30.values)**r2_orig + r3_orig )
 param_n_orig   = 1/( s1_orig*np.exp(s2_orig*df_velprofs.Vs30.values) + s3_orig*np.exp(s4_orig*df_velprofs.Vs30.values) ) 
 param_vs0_orig = p1_orig*(df_velprofs.Vs30.values)**2 + p2_orig*df_velprofs.Vs30.values + p3_orig
-#considering between event effects
-param_kdBr_new   = param_k_new * np.exp(dB_r_new[vel_inv])
-param_vs0dBr_new = (param_kdBr_new*(param_a_new+1)*z_star + (1+param_kdBr_new*(30-z_star))**(param_a_new+1) - 1) / (30*(param_a_new+1)*param_kdBr_new) * df_velprofs.Vs30.values
 
 #mean prediction
 y_data  = stan_data['Y']
-y_new   = np.log(param_vs0_new  * ( 1 + param_k_new  * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_new))
-y_newdB = np.log(param_vs0dBr_new * ( 1 + param_kdBr_new * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_new))
-y_orig  = np.log(param_vs0_orig * ( 1 + param_k_orig * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_orig))
+y_new   = np.log(param_vs0_new   * ( 1 + param_k_new  * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_new))
+y_newdB = np.log(param_vs0dB_new * ( 1 + param_kdB_new * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_new))
+y_orig  = np.log(param_vs0_orig  * ( 1 + param_k_orig * ( np.maximum(0, stan_data['Z']-z_star) ) )**(1/param_n_orig))
 
 #compute residuals
 res_tot     = y_data - y_new
@@ -353,7 +374,7 @@ ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
 ax.set_xlim([-3, 3])
-ax.set_ylim([0, 200])
+ax.set_ylim([0, 200]) if flag_trunc_z1 else ax.set_ylim([0, 500])
 ax.invert_yaxis()
 ax.set_title(r'Total Residuals versus Depth', fontsize=30)
 fig.tight_layout()
@@ -372,7 +393,7 @@ ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
 ax.set_xlim([-3, 3])
-ax.set_ylim([0, 200])
+ax.set_ylim([0, 200]) if flag_trunc_z1 else ax.set_ylim([0, 500])
 ax.invert_yaxis()
 ax.set_title(r'Total Residuals versus Depth', fontsize=30)
 fig.tight_layout()
@@ -430,7 +451,7 @@ for k, vs30_b in enumerate(vs30_bins):
     ax.tick_params(axis='x', labelsize=25)
     ax.tick_params(axis='y', labelsize=25)
     ax.set_xlim([-3, 3])
-    ax.set_ylim([0, 200])
+    ax.set_ylim([0, 200]) if flag_trunc_z1 else ax.set_ylim([0, 500])
     ax.invert_yaxis()
     ax.set_title('Total Residuals versus Depth \n $V_{S30}= [%.i, %.i)$ (m/sec)'%vs30_b, fontsize=30)
     fig.savefig( dir_fig + fname_fig + '.png' )
@@ -462,7 +483,7 @@ for k, zmax_b in enumerate(zmax_bins):
     ax.tick_params(axis='x', labelsize=25)
     ax.tick_params(axis='y', labelsize=25)
     ax.set_xlim([-3, 3])
-    ax.set_ylim([0, 200])
+    ax.set_ylim([0, 200]) if flag_trunc_z1 else ax.set_ylim([0, 500])
     ax.invert_yaxis()
     ax.set_title('Total Residuals versus Depth \n $z_{max}= [%.i, %.i)$ (m)'%zmax_b, fontsize=30)
     fig.savefig( dir_fig + fname_fig + '.png' )
@@ -490,7 +511,7 @@ ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
 ax.set_xlim([-3, 3])
-ax.set_ylim([0, 200])
+ax.set_ylim([0, 200]) if flag_trunc_z1 else ax.set_ylim([0, 500])
 ax.invert_yaxis()
 ax.set_title(r'Within-profile Residuals versus Depth', fontsize=30)
 fig.tight_layout()
@@ -509,7 +530,7 @@ ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
 ax.set_xlim([-3, 3])
-ax.set_ylim([0, 200])
+ax.set_ylim([0, 200]) if flag_trunc_z1 else ax.set_ylim([0, 500])
 ax.invert_yaxis()
 ax.set_title(r'Within-profile Residuals versus Depth', fontsize=30)
 fig.tight_layout()
@@ -567,7 +588,7 @@ for k, vs30_b in enumerate(vs30_bins):
     ax.tick_params(axis='x', labelsize=25)
     ax.tick_params(axis='y', labelsize=25)
     ax.set_xlim([-3, 3])
-    ax.set_ylim([0, 200])
+    ax.set_ylim([0, 200]) if flag_trunc_z1 else ax.set_ylim([0, 500])
     ax.invert_yaxis()
     ax.set_title('Within-profile Residuals versus Depth \n $V_{S30}= [%.i, %.i)$ (m/sec)'%vs30_b, fontsize=30)
     fig.savefig( dir_fig + fname_fig + '.png' )
@@ -599,7 +620,7 @@ for k, zmax_b in enumerate(zmax_bins):
     ax.tick_params(axis='x', labelsize=25)
     ax.tick_params(axis='y', labelsize=25)
     ax.set_xlim([-3, 3])
-    ax.set_ylim([0, 200])
+    ax.set_ylim([0, 200]) if flag_trunc_z1 else ax.set_ylim([0, 500])
     ax.invert_yaxis()
     ax.set_title('Within-profile Residuals versus Depth \n $z_{max}= [%.i, %.i)$ (m)'%zmax_b, fontsize=30)
     fig.savefig( dir_fig + fname_fig + '.png' )
@@ -609,10 +630,10 @@ for k, zmax_b in enumerate(zmax_bins):
 # ---------------------------
 vs30_array = np.logspace(np.log10(10), np.log10(3000))
 #scaling relationships
-param_k_scl   = np.exp( r1_new + r2_new * sigmoid((np.log(vs30_array)-logVs30mid_new)*logVs30scl_new) )
 param_n_scl   =         1      + s2_new * sigmoid((np.log(vs30_array)-logVs30mid_new)*logVs30scl_new)
 param_a_scl   =-1/param_n_scl
-param_vs0_scl = (param_k_scl*(param_a_scl+1)*z_star + (1+param_k_scl*(30-z_star))**(param_a_scl+1) - 1) / (30*(param_a_scl+1)*param_k_scl) * vs30_array 
+param_k_scl   = np.exp( r1_new + r2_new * sigmoid((np.log(vs30_array)-logVs30mid_new)*logVs30scl_new) )
+param_vs0_scl = np.array([calcVs0(vs30, k, n, z_star) for (vs30, n, k) in zip(vs30_array, param_n_scl, param_k_scl)])
 
 #scaling k
 fname_fig = (fname_out_main + '_scaling_param_k').replace(' ','_')
@@ -674,20 +695,20 @@ fig.tight_layout()
 fig.savefig( dir_fig + fname_fig + '.png' )
 
 #delta B r
-fname_fig = (fname_out_main + '_scatter_param_dBr').replace(' ','_')
+fname_fig = (fname_out_main + '_scatter_param_rdB').replace(' ','_')
 fig, ax = plt.subplots(figsize = (10,10))
-hl = ax.plot(df_params_summary.Vs30, df_params_summary.param_dBr_med, 'o',  linewidth=2, color='orangered', label='Posterior Median')
-hl = ax.errorbar(df_params_summary.Vs30, df_params_summary.param_dBr_med, yerr=df_params_summary.param_dBr_std, 
+hl = ax.plot(df_params_summary.Vs30, df_params_summary.param_rdB_med, 'o',  linewidth=2, color='orangered', label='Posterior Median')
+hl = ax.errorbar(df_params_summary.Vs30, df_params_summary.param_rdB_med, yerr=df_params_summary.param_rdB_std, 
                   capsize=4, fmt='none', ecolor='orangered', label='Posterior Std')
 #edit properties
 ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=30)
-ax.set_ylabel(r'$\delta B_r$',  fontsize=30)
+ax.set_ylabel(r'$r_{\delta B}$',    fontsize=30)
 ax.legend(loc='lower right', fontsize=30)
 ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
 ax.set_ylim([-10, 10])
-ax.set_title(r'$\delta B_r$ Scatter ', fontsize=30)
+ax.set_title(r'$r_{\delta B}$ Scatter ', fontsize=30)
 fig.tight_layout()
 fig.savefig( dir_fig + fname_fig + '.png' )
 
@@ -698,18 +719,18 @@ fig.savefig( dir_fig + fname_fig + '.png' )
 pl_win = [[36.5, 38.75], [-123.25, -121.25]]
 
 #median delta B r
-data2plot = df_params_summary[['Lat','Lon','param_dBr_med']].values
+data2plot = df_params_summary[['Lat','Lon','param_rdB_med']].values
 
-fname_fig =  (fname_out_main + '_locations_param_dBr_med').replace(' ','_')
+fname_fig =  (fname_out_main + '_locations_param_rdB_med').replace(' ','_')
 fig, ax, cbar, data_crs, gl = pycplt.PlotScatterCAMap(data2plot, cmin=-6,  cmax=6, flag_grid=False, 
                                                       title=None, cbar_label='', log_cbar = False, 
                                                       frmt_clb = '%.2f', alpha_v = 0.7, cmap='seismic', marker_size=70.)
 #edit figure properties
 cbar.ax.tick_params(labelsize=25)
-cbar.set_label(r'Median $\delta B_r$', size=30)
+cbar.set_label(r'Median $r_{\delta B}$', size=30)
 ax.set_xlim(pl_win[1])
 ax.set_ylim(pl_win[0])
-ax.set_title(r'$\delta B_r$ Spatial Variability ', fontsize=30)
+ax.set_title(r'$r_{\delta B}$ Spatial Variability ', fontsize=30)
 #grid lines
 gl = ax.gridlines(crs=data_crs, draw_labels=True,
                   linewidth=1, color='gray', alpha=0.5, linestyle='--')
@@ -722,18 +743,18 @@ fig.tight_layout()
 fig.savefig( dir_fig + fname_fig + '.png' )
 
 #std delta B r
-data2plot = df_params_summary[['Lat','Lon','param_dBr_std']].values
+data2plot = df_params_summary[['Lat','Lon','param_rdB_std']].values
 
-fname_fig =  (fname_out_main + '_locations_param_dBr_std').replace(' ','_')
+fname_fig =  (fname_out_main + '_locations_param_rdB_std').replace(' ','_')
 fig, ax, cbar, data_crs, gl = pycplt.PlotScatterCAMap(data2plot, cmin=0,  cmax=1.5, flag_grid=False, 
                                                       title=None, cbar_label='', log_cbar = False, 
                                                       frmt_clb = '%.2f', alpha_v = 0.7, cmap='Reds', marker_size=70.)
 #edit figure properties
 cbar.ax.tick_params(labelsize=25)
-cbar.set_label(r'Std $\delta B_r$', size=30)
+cbar.set_label(r'Std $r_{\delta B}$', size=30)
 ax.set_xlim(pl_win[1])
 ax.set_ylim(pl_win[0])
-ax.set_title(r'$\delta B_r$ Spatial Variability ', fontsize=30)
+ax.set_title(r'$r_{\delta B}$ Spatial Variability ', fontsize=30)
 #grid lines
 gl = ax.gridlines(crs=data_crs, draw_labels=True,
                   linewidth=1, color='gray', alpha=0.5, linestyle='--')
@@ -758,20 +779,20 @@ for k, v_id_dsid in enumerate(vel_id_dsid):
 
     #velocity prof information
     vs30 = df_vel.Vs30.values[0]
-    param_k   = np.exp( r1_new + r2_new * sigmoid((np.log(vs30)-logVs30mid_new)*logVs30scl_new) )
-    param_n   =         1      + s2_new * sigmoid((np.log(vs30)-logVs30mid_new)*logVs30scl_new)
-    param_a   =-1/param_n
-    param_vs0 = (param_k*(param_a+1)*z_star + (1+param_k*(30-z_star))**(param_a+1) - 1) / (30*(param_a+1)*param_k) * vs30
-    param_kdBr   = param_k * np.exp( dB_r_new[k] )
-    param_vs0dBr = (param_kdBr*(param_a+1)*z_star + (1+param_kdBr*(30-z_star))**(param_a+1) - 1) / (30*(param_a+1)*param_kdBr) * vs30
+    param_n     =         1      + s2_new * sigmoid((np.log(vs30)-logVs30mid_new)*logVs30scl_new)
+    param_a     =-1/param_n
+    param_k     = np.exp( r1_new + r2_new * sigmoid((np.log(vs30)-logVs30mid_new)*logVs30scl_new) )
+    param_kdB   = param_k * np.exp( r_dB_new[k] )
+    param_vs0   = calcVs0(vs30, param_k,   param_n, z_star)
+    param_vs0dB = calcVs0(vs30, param_kdB, param_n, z_star)
 
     #velocity profile
     depth_array = np.concatenate([[0], np.cumsum(df_vel.Thk)])
     vel_array   = np.concatenate([df_vel.Vs.values, [df_vel.Vs.values[-1]]])
     #velocity model
     depth_m_array = np.linspace(depth_array.min(), depth_array.max(), 1000)
-    vel_m_array   = param_vs0    * ( 1 + param_k    * ( np.maximum(0, depth_m_array-z_star) ) )**(1/param_n)
-    vel_mdB_array = param_vs0dBr * ( 1 + param_kdBr * ( np.maximum(0, depth_m_array-z_star) ) )**(1/param_n)
+    vel_m_array   = param_vs0   * ( 1 + param_k   * ( np.maximum(0, depth_m_array-z_star) ) )**(1/param_n)
+    vel_mdB_array = param_vs0dB * ( 1 + param_kdB * ( np.maximum(0, depth_m_array-z_star) ) )**(1/param_n)
     
     #create figure   
     fig, ax = plt.subplots(figsize = (10,10))
@@ -788,7 +809,7 @@ for k, v_id_dsid in enumerate(vel_id_dsid):
     ax.xaxis.set_tick_params(which='major', size=10, width=2, direction='in', top='on')
     ax.yaxis.set_tick_params(which='major', size=10, width=2, direction='in', right='on')
     ax.set_xlim([0, 1200])
-    ax.set_ylim([0, 200])
+    ax.set_ylim([0, 200]) if flag_trunc_z1 else ax.set_ylim([0, 500])
     ax.invert_yaxis()
     ax.set_title(name_vel, fontsize=30)
     fig.tight_layout()
