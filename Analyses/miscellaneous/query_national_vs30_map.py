@@ -5,7 +5,7 @@ Created on Tue Feb  2 19:01:47 2021
 
 @author: glavrent
 """
-#load variables
+#load libraries
 import pathlib
 import numpy as np
 import rasterio

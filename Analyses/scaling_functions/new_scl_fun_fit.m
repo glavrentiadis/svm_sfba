@@ -1,4 +1,6 @@
 %% Test New Scaling Functional Forms
+%text new forms by fitting the relationships in Shi and Asimaki 2018 over
+%the application range of Vs30
 
 %% Input
 %user functions

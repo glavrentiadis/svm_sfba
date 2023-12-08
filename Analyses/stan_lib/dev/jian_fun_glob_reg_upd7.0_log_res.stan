@@ -29,18 +29,13 @@ parameters {
   real<lower=0.1, upper=11.9> logVs30mid;
   real<lower=0.1, upper=14.9> logVs30scl;
   //k scaling
-  real            r1;
-  real<lower=0.0> r2;
+  real<lower=-10., upper=10.> r1;
+  real<lower= 0.0, upper=20.> r2;
   //s scaling
-  real<lower=0.0> s2;
+  real<lower= 0.0, upper=40.> s2;
  
   //aleatory variability
-  real<lower=0.0> sigma_vel;
-  //between event std
-  real<lower=0.0> tau_r;
-
-  //between profile term
-  vector[NVEL] rdB;
+  real<lower=0.0, upper=3.0> sigma_vel;
 }
 
 transformed parameters {
@@ -52,14 +47,18 @@ transformed parameters {
 
   //model parameters
   n_p   =      1. + s2 * inv_logit( (log(Vs30)-logVs30mid) * logVs30scl );
-  k_p   = exp( r1 + r2 * inv_logit( (log(Vs30)-logVs30mid) * logVs30scl ) + rdB );
+  k_p   = exp( r1 + r2 * inv_logit( (log(Vs30)-logVs30mid) * logVs30scl ) );
   a_p   =-1. ./ n_p;
   for(i in 1:NVEL){
-      // Vs0 = (k_p*(a_p+1.)*z_star + (1.+k_p*(30.-z_star))^(a_p+1.) - 1.) / (30.*(a_p+1.)*k_p) * Vs30;
+    // for n_p==0; Vs0 = (z_star + 1/k_p * log(1.+k_p*(30.-z_star))) * Vs30;
+    // for n_p!=0; Vs0 = (k_p*(a_p+1.)*z_star + (1.+k_p*(30.-z_star))^(a_p+1.) - 1.) / (30.*(a_p+1.)*k_p) * Vs30;
+    if (abs(n_p[i]-1) <= delta)
+      Vs0_p[i] = (z_star + 1/k_p[i] * log(1.+k_p[i]*(30.-z_star)))/30. * Vs30[i];  
+    else
       Vs0_p[i] = (k_p[i]*(a_p[i]+1.)*z_star + (1.+k_p[i]*(30.-z_star))^(a_p[i]+1.) - 1.) / (30.*(a_p[i]+1.)*k_p[i]) * Vs30[i];
-      //print("logVs30mid=",logVs30mid," logVs30scl=",logVs30scl);
-      //print("r1=",r1," r2=",r2," s2=",s2);
-      //print("i=",i," Vs30=",Vs30[i]," k_p=",k_p[i]," n_p=",n_p[i]," a_p=",a_p[i]," Vs0[i]=",Vs0_p[i]);
+    //print("logVs30mid=",logVs30mid," logVs30scl=",logVs30scl);
+    //print("r1=",r1," r2=",r2," s2=",s2);
+    //print("i=",i," Vs30=",Vs30[i]," k_p=",k_p[i]," n_p=",n_p[i]," a_p=",a_p[i]," Vs0[i]=",Vs0_p[i]);
   }
 }
 
@@ -80,11 +79,8 @@ model {
   r2 ~ lognormal(0.5, 0.5);
  
   //aleatory variability
+  //sigma_vel ~ lognormal(-0.3,0.6);
   sigma_vel ~ lognormal(-1.,0.6);
-  tau_r     ~ exponential(10.);  
- 
-  //between event term r scaling
-  rdB ~ normal(0,tau_r);
  
   //functional model
   //---   ---   ---   ---   ---   ---

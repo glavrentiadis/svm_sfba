@@ -47,6 +47,7 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header=True, sep=',', dsid=np.
     #velocity profile names
     p = re.compile(filter_vname)
 
+    #iterate over vel profiles
     df_v_profs = list()
     for k, (_, df_vp_info) in enumerate(df_vprof_info.iterrows()):
         print(r'reading prof  %i of %i (%s)'%(k+1,n_vel,df_vp_info.dataset))
@@ -61,7 +62,7 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header=True, sep=',', dsid=np.
         n_v = p.findall(f_v)[0] 
         if type(n_v) is tuple:  n_v = " ".join(n_v)
 
-        #top of layer depth
+        #layer depths
         z  = df_v.Depth.values
         #Vs values
         vs = df_v.Vs.values
@@ -70,14 +71,14 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header=True, sep=',', dsid=np.
             print(f'\tSkipping prof due to unavailable values: %s ...'%(df_vp_info.dataset))
             continue
         #assert top layer depth reported
-        assert(np.abs(z[0])<1e-9),'Error. Depths to top of layers should be reported.'
+        assert(np.abs(z[0])<1e-9),'Error. Top of profile should be reported.'
         #assert(np.abs(vs[0]-vs[1])<1e-9),'Error. Inconsistent format. Assumed step function profile.'
         if not np.abs(vs[0]-vs[1])<1e-9:
             print(f'\tSkipping prof due to inconsistent format: %s ...'%(df_vp_info.dataset))
             continue
         
         #add prof id and name
-        df_v.loc[:,'VelID']   = k
+        df_v.loc[:,'VelID']   = k+1
         df_v.loc[:,'VelName'] = n_v
         #add dataset id and name
         df_v.loc[:,'DSID']   = dsid

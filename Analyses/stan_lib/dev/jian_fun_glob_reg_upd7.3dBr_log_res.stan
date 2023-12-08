@@ -18,6 +18,13 @@ data {
   //observations
   vector[N] Z; //Depth array 
   vector[N] Y; //Velocity array
+  
+  //fixed model parameters
+  real logVs30mid_fxd;
+  real logVs30scl_fxd;
+  real r1_fxd;
+  real r2_fxd;
+  real s2_fxd;
 }
 
 transformed data {
@@ -26,18 +33,17 @@ transformed data {
 
 parameters {
   //model parameters
-  //k scaling
-  real<lower=0.0> r1;
-  real<lower=0.0> r2;
-  real r3;
-  real r4;
-  //s scaling
-  real<lower=0.0> s1;
-  real<lower=0.0> s2;
-  real<lower=0.0> s3;
- 
+  //k scaling (adjustment)
+  real<lower=-5., upper=5.> delta_r1;
+  real<lower=-5., upper=5.> delta_r2;
+  
   //aleatory variability
-  real<lower=0.0> sigma_vel;
+  real<lower=0.0, upper=3.0> sigma_vel;
+  //between event std
+  real<lower=0.0, upper=10.0> tau_rdB;
+
+  //between profile term
+  vector[NVEL] rdB;
 }
 
 transformed parameters {
@@ -46,16 +52,34 @@ transformed parameters {
   vector[NVEL] a_p;
   vector<lower=0.0>[NVEL] k_p;
   vector<lower=0.0>[NVEL] Vs0_p;
-
+  //fixed terms   
+  real logVs30mid;
+  real logVs30scl;
+  real r1;
+  real r2;
+  real s2;
+  
+  //model coefficinets
+  logVs30mid = logVs30mid_fxd;
+  logVs30scl = logVs30scl_fxd;
+  r1 = r1_fxd + delta_r1;
+  r2 = r2_fxd + delta_r2;
+  s2 = s2_fxd;
+  
   //model parameters
-  n_p   = 1. + s3 * inv_logit( (log(Vs30)-s1) * s2 );
-  k_p   = exp( r4 + r3 * inv_logit( (log(Vs30)-r1) * r2 ) );
+  n_p   =      1. + s2 * inv_logit( (log(Vs30)-logVs30mid) * logVs30scl );
+  k_p   = exp( r1 + r2 * inv_logit( (log(Vs30)-logVs30mid) * logVs30scl ) + rdB );
   a_p   =-1. ./ n_p;
   for(i in 1:NVEL){
-      // Vs0 = (k_p*(a_p+1.)*z_star + (1.+k_p*(30.-z_star))^(a_p+1.) - 1.) / (30.*(a_p+1.)*k_p) * Vs30;
+    // for n_p==0; Vs0 = (z_star + 1/k_p * log(1.+k_p*(30.-z_star))) * Vs30;
+    // for n_p!=0; Vs0 = (k_p*(a_p+1.)*z_star + (1.+k_p*(30.-z_star))^(a_p+1.) - 1.) / (30.*(a_p+1.)*k_p) * Vs30;
+    if (abs(n_p[i]-1) <= delta)
+      Vs0_p[i] = (z_star + 1/k_p[i] * log(1.+k_p[i]*(30.-z_star)))/30. * Vs30[i];  
+    else
       Vs0_p[i] = (k_p[i]*(a_p[i]+1.)*z_star + (1.+k_p[i]*(30.-z_star))^(a_p[i]+1.) - 1.) / (30.*(a_p[i]+1.)*k_p[i]) * Vs30[i];
-      //print("i=",i," Vs30=",Vs30[i]," k_p=",k_p[i]," n_p=",n_p[i]," a_p=",a_p[i]);
-      //print("r1=",r1," r2=",r2," r3=",r3," r4=",r4," s1=",s1," s2=",s2," s3=",s3);      
+    //print("i=",i," Vs30=",Vs30[i]," k_p=",k_p[i]," n_p=",n_p[i]," a_p=",a_p[i]," Vs0[i]=",Vs0_p[i]);
+    //print("logVs30mid=",logVs30mid," logVs30scl=",logVs30scl);
+    //print("r1=",r1," r2=",r2," s2=",s2);
   }
 }
 
@@ -66,21 +90,16 @@ model {
   //prior distributions
   //---   ---   ---   ---   ---   ---
   //model coefficients
-  //n_p scaling
-  s1 ~ normal(6.0, 0.5);
-  //s2 ~ gamma(3.5, 0.5);
-  s2 ~ gamma(2.0, 0.5);
-  s3 ~ lognormal(2.0, 0.3);
-  // k_p scaling
-  r1 ~ normal(6.0, 0.5);
-  //r2 ~ gamma(3.5, 0.5);
-  r2 ~ gamma(2.0, 0.5);
-  r3 ~ lognormal(0.5, 0.5);
-  r4 ~ normal(0.0, 2.0);
- 
+  //k scaling (adjustment)
+  delta_r1 ~ normal(0,0.5);
+  delta_r2 ~ normal(0,0.5);
+    
   //aleatory variability
-  //sigma_vel ~ lognormal(-0.3,0.6);
   sigma_vel ~ lognormal(-1.,0.6);
+  tau_rdB   ~ exponential(2.);  
+ 
+  //between event term r scaling
+  rdB ~ normal(0,tau_rdB);
  
   //functional model
   //---   ---   ---   ---   ---   ---
