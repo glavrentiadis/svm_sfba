@@ -177,12 +177,12 @@ utm_zone = '10S'
 # Dataset 08/30/23
 # ---   ---   ---   ---
 #Jian profiles
-dir_velprofs_Jian     = '../../Raw_files/Datasets_20230930/Jian/dataset/'
-fname_vprof_info_Jian = '../../Raw_files/Datasets_20230930/Jian.xlsx'
-filter_vname_Jian     = 'profile_(.*)\.txt'
+dir_velprofs_SA18     = '../../Raw_files/datasets_20230930/Shi_Asimaki/dataset/'
+fname_vprof_info_SA18 = '../../Raw_files/datasets_20230930/Shi_Asimaki_2018.xlsx'
+filter_vname_SA18     = 'profile_(.*)\.txt'
 #VSPDB_Vs_Profiles
-dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20230930/VSPDB/dataset/'
-fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20230930/VSPDB.xlsx'
+dir_velprofs_VSPDB     = '../../Raw_files/datasets_20230930/VSPDB/dataset/'
+fname_vprof_info_VSPDB = '../../Raw_files/datasets_20230930/VSPDB.xlsx'
 filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
 
 #output directory
@@ -196,9 +196,9 @@ dir_out = '../../Data/vel_profiles_dataset/'
 df_vel_profs = []
 
 #read Jian profiles
-print("Reading Jian's profiles")
-df_vel_profs.append( ReadGenProfs(dir_name=dir_velprofs_Jian,  fname_vprof_info=fname_vprof_info_Jian,
-                                  dsid=1, dsname='Jian', filter_vname=filter_vname_Jian,
+print("Reading Shi and Asimaki 2018 profiles")
+df_vel_profs.append( ReadGenProfs(dir_name=dir_velprofs_SA18,  fname_vprof_info=fname_vprof_info_SA18,
+                                  dsid=1, dsname='Shi_Asimaki_2018', filter_vname=filter_vname_SA18,
                                   flag_header=False, sep='\t') )
 
 #read VSPDB profiles
@@ -238,13 +238,13 @@ if not os.path.isdir(dir_out): pathlib.Path(dir_out).mkdir(parents=True, exist_o
 #save all profiles
 df_vel_profs.to_csv( dir_out+'all_velocity_profles.csv', index=False )
 #save Jian profiles
-if np.any(df_vel_profs.DSID==1): df_vel_profs.loc[df_vel_profs.DSID==1,].to_csv( dir_out+ 'Jian_velocity_profles.csv',     index=False )
+if np.any(df_vel_profs.DSID==1): df_vel_profs.loc[df_vel_profs.DSID==1,].to_csv( dir_out+ 'Shi_Asimaki_velocity_profles.csv',     index=False )
 #save Boore profiles
 if np.any(df_vel_profs.DSID==2): df_vel_profs.loc[df_vel_profs.DSID==2,].to_csv( dir_out+ 'Boore_velocity_profles.csv',    index=False )
 #save VSPDB profiles
 if np.any(df_vel_profs.DSID==3): df_vel_profs.loc[df_vel_profs.DSID==3,].to_csv( dir_out+ 'VSPDB_velocity_profles.csv',    index=False )
 #save Jian and VSPDB profiles
-if np.any(np.isin(df_vel_profs.DSID,[1,3])): df_vel_profs.loc[np.isin(df_vel_profs.DSID,[1,3]),].to_csv( dir_out+ 'Jian_VSPDB_velocity_profles.csv', index=False )
+if np.any(np.isin(df_vel_profs.DSID,[1,3])): df_vel_profs.loc[np.isin(df_vel_profs.DSID,[1,3]),].to_csv( dir_out+ 'Shi_Asimaki_VSPDB_velocity_profles.csv', index=False )
 
 #save velocity profile info
 df_profs_info.to_csv( dir_out+'all_velocity_profles_info.csv', index=False )
