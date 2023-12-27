@@ -6,7 +6,7 @@ Created on Wed Aug 24 17:38:15 2022
 @author: glavrent
 """
 
-#load variables
+#load libraries
 import os
 import sys
 import pathlib
@@ -114,67 +114,7 @@ def ReadGenProfs(dir_name, fname_vprof_info, flag_header=True, sep=',', dsid=np.
 # projection system
 utm_zone = '10S'
 
-# Dataset 09/15/22
-# ---   ---   ---   ---
-# #Jian profiles
-# dir_velprofs_Jian     = '../../Raw_files/Datasets_20220915/Jian/dataset/'
-# fname_vprof_info_Jian = '../../Raw_files/Datasets_20220915/Jian/Jian.xlsx'
-# filter_vname_Jian     = 'profile_(.*)\.txt'
-# #Boore profiles
-# dir_velprofs_Boore     = '../../Raw_files/Datasets_20220915/Boore/dataset/'
-# fname_vprof_info_Boore = '../../Raw_files/Datasets_20220915/Boore/Boore.xlsx'
-# filter_vname_Boore     = '(.*)\.txt'
-# #VSPDB_Vs_Profiles
-# dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20220915/VSPDB/dataset/'
-# fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20220915/VSPDB/VSPDB.xlsx'
-# filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
-
-# # Dataset 12/01/22
-# # ---   ---   ---   ---
-# #Jian profiles
-# dir_velprofs_Jian     = '../../Raw_files/Datasets_20221201/Jian/dataset/'
-# fname_vprof_info_Jian = '../../Raw_files/Datasets_20221201/Jian/Jian.xlsx'
-# filter_vname_Jian     = 'profile_(.*)\.txt'
-# #Boore profiles
-# dir_velprofs_Boore     = '../../Raw_files/Datasets_20221201/Boore/dataset/'
-# fname_vprof_info_Boore = '../../Raw_files/Datasets_20221201/Boore/Boore.xlsx'
-# filter_vname_Boore     = '(.*)\.txt'
-# #VSPDB_Vs_Profiles
-# dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20221201/VSPDB/dataset/'
-# fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20221201/VSPDB/VSPDB.xlsx'
-# filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
-
-# # Dataset 12/05/22
-# # ---   ---   ---   ---
-# #Jian profiles
-# dir_velprofs_Jian     = '../../Raw_files/Datasets_20221205/Jian/dataset/'
-# fname_vprof_info_Jian = '../../Raw_files/Datasets_20221205/Jian/Jian.xlsx'
-# filter_vname_Jian     = 'profile_(.*)\.txt'
-# #Boore profiles
-# dir_velprofs_Boore     = '../../Raw_files/Datasets_20221205/Boore/dataset/'
-# fname_vprof_info_Boore = '../../Raw_files/Datasets_20221205/Boore/Boore.xlsx'
-# filter_vname_Boore     = '(.*)\.txt'
-# #VSPDB_Vs_Profiles
-# dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20221205/VSPDB/dataset/'
-# fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20221205/VSPDB/VSPDB.xlsx'
-# filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
-
-# # Dataset 02/09/23
-# # ---   ---   ---   ---
-# #Jian profiles
-# dir_velprofs_Jian     = '../../Raw_files/Datasets_20230209/Jian/dataset/'
-# fname_vprof_info_Jian = '../../Raw_files/Datasets_20230209/Jian/Jian.xlsx'
-# filter_vname_Jian     = 'profile_(.*)\.txt'
-# #Boore profiles
-# dir_velprofs_Boore     = '../../Raw_files/Datasets_20230209/Boore/dataset/'
-# fname_vprof_info_Boore = '../../Raw_files/Datasets_20230209/Boore/Boore.xlsx'
-# filter_vname_Boore     = '(.*)\.txt'
-# #VSPDB_Vs_Profiles
-# dir_velprofs_VSPDB     = '../../Raw_files/Datasets_20230209/VSPDB/dataset/'
-# fname_vprof_info_VSPDB = '../../Raw_files/Datasets_20230209/VSPDB/VSPDB.xlsx'
-# filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
-
-# Dataset 08/30/23
+# Dataset Information
 # ---   ---   ---   ---
 #Jian profiles
 dir_velprofs_SA18     = '../../Raw_files/datasets_20230930/Shi_Asimaki/dataset/'
@@ -184,6 +124,13 @@ filter_vname_SA18     = 'profile_(.*)\.txt'
 dir_velprofs_VSPDB     = '../../Raw_files/datasets_20230930/VSPDB/dataset/'
 fname_vprof_info_VSPDB = '../../Raw_files/datasets_20230930/VSPDB.xlsx'
 filter_vname_VSPDB     = '(.*)_velocityProfile_(.*)\.txt'
+
+#outlier profile ids
+flag_outlier_rm = True
+outlier_ds_id  = [3,  3,  3]
+outlier_vel_id = [56, 57, 58]
+#outlier_ds_id  = [3,  3,  3,  3,  3,  3]
+#outlier_vel_id = [56, 57, 43, 45, 58, 31]
 
 #output directory
 # dir_out = '../../Data/vel_profiles/'
@@ -213,8 +160,7 @@ df_vel_profs = pd.concat(df_vel_profs, axis=0).reset_index(drop=True)
 #create velocity profile info
 _, vel_idx, vel_inv = np.unique(df_vel_profs[['DSID','VelID']].values, axis=0, return_index=True, return_inverse=True)
 n_vel               = vel_idx.shape[0]
-df_profs_info       = df_vel_profs[['DSID','DSName','VelID','VelName','Vs30','Lat','Lon']].iloc[vel_idx,:].reset_index(drop=True)
-
+df_profs_info       = df_vel_profs[['DSID','DSName','VelID','VelName','Vs30','Z_max','Lat','Lon']].iloc[vel_idx,:].reset_index(drop=True)
 
 # projection system
 # ----   ----   ----   ----   ----
@@ -248,4 +194,9 @@ if np.any(np.isin(df_vel_profs.DSID,[1,3])): df_vel_profs.loc[np.isin(df_vel_pro
 
 #save velocity profile info
 df_profs_info.to_csv( dir_out+'all_velocity_profles_info.csv', index=False )
+
+#save velocity profile info (without outliers)
+i_out = np.logical_and(np.isin(df_profs_info.DSID,  outlier_ds_id), np.isin(df_profs_info.VelID, outlier_vel_id))
+i_out = np.logical_or(i_out, df_profs_info.Vs30 < 100)
+df_profs_info.loc[~i_out,:].to_csv( dir_out+'all_velocity_profles_info_valid.csv', index=False )
 
