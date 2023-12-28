@@ -234,9 +234,9 @@ class VelModelStationary(VelModel):
         -------
         vs_med : np.array
             Shear-wave velocity median profile.
-        - - - - 
         vs_sig : np.array
             Shear-wave velocity standard deviation.
+        - - - - 
         vs_array : np.array
             Shear-wave veolicty model for a given epsilon
         '''
@@ -305,14 +305,15 @@ class VelModelSpatialVarying(VelModel):
             #read spatially varying terms
             df_dBr = pd.read_csv(fname_dBr)
             #coordinates of training dataset
-            self.vprof_latlon = df_dBr.loc[:,['Lat','Lon']].values
+            self.vprof_latlon  = df_dBr.loc[:,['Lat','Lon']].values
             #spatially varying terms
-            self.vprof_dBr    = df_dBr.loc[:,'param_dBr_med'].values
+            self.vprof_dBr_med = df_dBr.loc[:,'param_dBr_med'].values
+            self.vprof_dBr_sig = df_dBr.loc[:,'param_dBr_std'].values
         else:
             raise RuntimeError('Unspecified spatially varying parameters of training dataset.')
 
         #convert lat/lon to UTM coordinates
-        self.vprof_XY = np.array( self.CalcCorrUTM(self.vprof_latlon[:,0], self.vprof_latlon[:,1]) )
+        self.vprof_XY = np.array( self.CalcCorrUTM(self.vprof_latlon[:,0], self.vprof_latlon[:,1]) ).T
                 
     # Scaling functions
     # ---   ---   ---   ---   ---
@@ -341,8 +342,11 @@ class VelModelSpatialVarying(VelModel):
             Covariance of profile specific mean adjustment to slope parameter..
         '''
         
+        #convert latlon to 2d array
+        latlon = np.reshape(latlon, (-1, 2)) if latlon.ndim==1 else latlon
+        
         #compute UTM coordinates
-        XY =  self.CalcCorrUTM(latlon[:,0], latlon[:,1])
+        XY = np.array( self.CalcCorrUTM(latlon[:,0], latlon[:,1]) ).T
         
         #vs30 scaling
         lnVs30s = (np.log(vs30)-self.logVs30mid)/self.logVs30scl
@@ -353,7 +357,7 @@ class VelModelSpatialVarying(VelModel):
         #sample dB_r term at new location
         dBr_mu, dBr_sig, dBr_cov = self.SampleCoeffs(XY, self.vprof_XY, self.vprof_dBr_med, self.vprof_dBr_sig,
                                                         self.ell_rdB, self.omega_rdB)
-        
+
         #profile specific curvature coefficient
         k = k_glob * np.exp(dBr_mu)
         
@@ -378,13 +382,18 @@ class VelModelSpatialVarying(VelModel):
         Returns
         -------
         vs_med : np.array
-            Shear-wave velocity median profile.
-        - - - - 
+            Shear-wave velocity site-specific median profile.
+        vs_glob : np.array
+            Shear-wave velocity global median profile.
         vs_sig : np.array
             Shear-wave velocity standard deviation.
+        - - - - 
         vs_array : np.array
             Shear-wave veolicty model for a given epsilon
         '''
+        
+        #convert lat long to numpy matrix
+        latlon = np.array(latlon).flatten()
         
         #compute scaling parameters
         #slope
@@ -400,15 +409,18 @@ class VelModelSpatialVarying(VelModel):
         if n_realiz > 0:
             n = np.matlib.repmat(n, 1, n_realiz)
 
-        #surface shear wave velocity
-        vs0 = self.calcVs0(vs30, k, n, self.z_star) if n_realiz == 0 else self.calcVs0(npmat.repmat(vs30, 1, n_realiz), k, npmat.repmat(n, 1, n_realiz), self.z_star)
+        #surface shear wave velocity (site specific)
+        vs0      = self.calcVs0(vs30, k, n, self.z_star)      if n_realiz == 0 else self.calcVs0(npmat.repmat(vs30, 1, n_realiz), k, npmat.repmat(n, 1, n_realiz), self.z_star)
+        #surface shear wave velocity (global)
+        vs0_glob = self.calcVs0(vs30, k_glob, n, self.z_star) if n_realiz == 0 else self.calcVs0(npmat.repmat(vs30, 1, n_realiz), k_glob, npmat.repmat(n, 1, n_realiz), self.z_star)
         
         #compute velocity profile
         if eps_array is None:
-            vs_med = self.calcVs(vs0, k, n, self.sigma, z_array)
-            vs_sig = np.full(vs_med.shape, self.sigma)
+            vs_med  = self.calcVs(vs0,      k,      n, self.sigma, z_array)
+            vs_glob = self.calcVs(vs0_glob, k_glob, n, self.sigma, z_array)
+            vs_sig  = np.full(vs_med.shape, self.sigma)
             
-            return vs_med, vs_sig
+            return vs_med, vs_glob, vs_sig
         else:
             vs_array = self.calcVs(vs0, k, n, self.sigma, z_array, eps_array)
             
@@ -510,7 +522,7 @@ class VelModelSpatialVarying(VelModel):
         
         #mean value of training dataset
         c_data_mu = c_data_mu.flatten()
-    
+        
         #uncertainty of training dataset
         if c_data_sig is None: c_data_sig = np.zeros(n_pt_data)
         c_data_cov = np.diag(c_data_sig**2) if c_data_sig.ndim == 1 else c_data_sig
