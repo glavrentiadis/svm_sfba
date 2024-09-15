@@ -61,13 +61,14 @@ b2_m21 =-0.201
 b3_m21 = 0.136
 
 #proposed model scaling coefficients
-logVs30mid_new = 6.20947
-logVs30scl_new = 0.372021 
-r1_new         =-2.32772
-r2_new         = 3.73403
-r3_new         = 0.2734575
-s2_new         = 4.83542
-
+logVs30mid_new = 6.49879
+logVs30scl_new = 0.435501
+r1_new         =-2.29844
+r2_new         = 5.390775
+r3_new         = 0.389704
+s2_new         = 7.07134
+    
+    
 #vs30 array
 vs30_array = np.logspace(np.log10(100), np.log10(2000), 1000)
 
@@ -114,7 +115,7 @@ ax.legend(loc='lower right', fontsize=30)
 ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
-ax.set_ylim([1e-2, 20])
+ax.set_ylim([1e-2, 50])
 # ax.set_title(r'$k$ Scaling', fontsize=30)
 fig.tight_layout()
 fig.savefig( dir_fig+fname_fig+'.png', bbox_inches='tight')
@@ -132,8 +133,8 @@ ax.legend(loc='upper left', fontsize=30)
 ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=25)
 ax.tick_params(axis='y', labelsize=25)
-ax.set_yticks(np.arange(0,7,1))
-ax.set_ylim([0,7])
+ax.set_yticks(np.arange(0,11,1))
+ax.set_ylim([0,8])
 # ax.set_title(r'$n$ Scaling', fontsize=30)
 fig.tight_layout()
 fig.savefig( dir_fig+fname_fig+'.png', bbox_inches='tight')

@@ -11,7 +11,7 @@ import numpy  as np
 from numpy import matlib as npmat
 from scipy import linalg as scipylinalg
 import pandas as pd
-#geographic coordinates                         `c
+#geographic coordinates
 import pyproj
 
 class VelModel:
@@ -169,7 +169,7 @@ class VelModelStationary(VelModel):
         #read model hyper-parameters
         if not fname_hparam is None:
             #read coefficient flatifle
-            df_hparam = pd.read_csv(fname_hparam)
+            df_hparam = pd.read_csv(fname_hparam, index_col=0)
             #median scaling
             self.logVs30mid = df_hparam.loc['prc0.50','logVs30mid']
             self.logVs30scl = df_hparam.loc['prc0.50','logVs30scl']
@@ -181,14 +181,14 @@ class VelModelStationary(VelModel):
             self.sigma      = df_hparam.loc['prc0.50','sigma_vel']
         else:
             #median scaling
-            self.logVs30mid = 6.20947
-            self.logVs30scl = 0.372021
-            self.r1         =-2.32772
-            self.r2         = 3.73403
-            self.r3         = 0.2734575
-            self.s2         = 4.83542
+            self.logVs30mid = 6.49879
+            self.logVs30scl = 0.435501
+            self.r1         =-2.29844
+            self.r2         = 5.390775
+            self.r3         = 0.389704
+            self.s2         = 7.07134
             #standard deviation
-            self.sigma      = 0.376676
+            self.sigma      = 0.375946
 
     # Scaling functions
     # ---   ---   ---   ---   ---
@@ -273,7 +273,7 @@ class VelModelSpatialVarying(VelModel):
         #read model hyper-parameters
         if not fname_hparam is None:
             #read coefficient flatifle
-            df_hparam = pd.read_csv(fname_hparam)
+            df_hparam = pd.read_csv(fname_hparam, index_col=0)
             #median scaling
             self.logVs30mid = df_hparam.loc['prc0.50','logVs30mid']
             self.logVs30scl = df_hparam.loc['prc0.50','logVs30scl']
@@ -288,32 +288,39 @@ class VelModelSpatialVarying(VelModel):
             self.sigma      = df_hparam.loc['prc0.50','sigma_vel']
         else:
             #median scaling
-            self.logVs30mid = 6.20947
-            self.logVs30scl = 0.372021
-            self.r1         =-2.32772
-            self.r2         = 3.73403
-            self.r3         = 0.2734575
-            self.s2         = 4.83542
+            self.logVs30mid = 6.49879
+            self.logVs30scl = 0.435501
+            self.r1         =-2.6114
+            self.r2         = 5.93392
+            self.r3         = 0.389704
+            self.s2         = 7.07134
             #hyper-parameters for spatial variation
-            self.ell_rdB    = 1.46847
-            self.omega_rdB  = 0.272678
+            self.ell_rdB    = 5.85778
+            self.omega_rdB  = 0.316363
             #standard deviation
-            self.sigma      = 0.376676
-
+            self.sigma      = 0.280569
+            
         #read spatially varying parameters of training dataset
         if not fname_dBr is None:
             #read spatially varying terms
             df_dBr = pd.read_csv(fname_dBr)
+            #conditional spatially varying flag
+            self.cond_flag = True
             #coordinates of training dataset
             self.vprof_latlon  = df_dBr.loc[:,['Lat','Lon']].values
             #spatially varying terms
             self.vprof_dBr_med = df_dBr.loc[:,'param_dBr_med'].values
             self.vprof_dBr_sig = df_dBr.loc[:,'param_dBr_std'].values
+            #convert lat/lon to UTM coordinates
+            self.vprof_XY = np.array( self.CalcCorrUTM(self.vprof_latlon[:,0], self.vprof_latlon[:,1]) ).T
         else:
-            raise RuntimeError('Unspecified spatially varying parameters of training dataset.')
-
-        #convert lat/lon to UTM coordinates
-        self.vprof_XY = np.array( self.CalcCorrUTM(self.vprof_latlon[:,0], self.vprof_latlon[:,1]) ).T
+            #conditional spatially varying flag
+            self.cond_flag = False
+            self.vprof_latlon  = None
+            self.vprof_XY      = None
+            self.vprof_dBr_med = None
+            self.vprof_dBr_sig = None
+            # raise RuntimeError('Unspecified spatially varying parameters of training dataset.')
                 
     # Scaling functions
     # ---   ---   ---   ---   ---
@@ -350,6 +357,7 @@ class VelModelSpatialVarying(VelModel):
         
         #vs30 scaling
         lnVs30s = (np.log(vs30)-self.logVs30mid)/self.logVs30scl
+        lnVs30s = np.array([lnVs30s]).flatten()
 
         #global profile slope parameter
         k_glob = np.exp( self.r1 + self.r2 * self.sigmoid(lnVs30s) + self.r3 * self.logVs30scl * np.log(1 + np.exp(lnVs30s)) )
@@ -403,26 +411,34 @@ class VelModelSpatialVarying(VelModel):
             #random samples
             dBr = self.MVNRnd(mean=dBr_mu, cov=dBr_cov, n_samp=n_realiz)
             #random slope parameters
-            k = k_glob * np.exp(dBr)
+            k = k_glob[:,np.newaxis] * np.exp(dBr)
         #curvature
         n = self.calcN(vs30)
-        if n_realiz > 0:
-            n = np.matlib.repmat(n, 1, n_realiz)
+
 
         #surface shear wave velocity (site specific)
-        vs0      = self.calcVs0(vs30, k, n, self.z_star)      if n_realiz == 0 else self.calcVs0(npmat.repmat(vs30, 1, n_realiz), k, npmat.repmat(n, 1, n_realiz), self.z_star)
+        if n_realiz == 0:
+            vs0 = self.calcVs0(vs30, k, n, self.z_star)
+        else:
+            vs0 = np.array([self.calcVs0(vs30, k[:,j], n, self.z_star) for j in range(n_realiz)]).T
         #surface shear wave velocity (global)
-        vs0_glob = self.calcVs0(vs30, k_glob, n, self.z_star) if n_realiz == 0 else self.calcVs0(npmat.repmat(vs30, 1, n_realiz), k_glob, npmat.repmat(n, 1, n_realiz), self.z_star)
+        vs0_glob = self.calcVs0(vs30, k_glob, n, self.z_star) 
         
         #compute velocity profile
         if eps_array is None:
-            vs_med  = self.calcVs(vs0,      k,      n, self.sigma, z_array)
+            if n_realiz == 0:
+                vs_med  = self.calcVs(vs0, k, n, self.sigma, z_array)
+            else:
+                vs_med = np.stack([self.calcVs(vs0[:,j], k[:,j], n, self.sigma, z_array) for j in range(n_realiz)], axis=2)
             vs_glob = self.calcVs(vs0_glob, k_glob, n, self.sigma, z_array)
-            vs_sig  = np.full(vs_med.shape, self.sigma)
+            vs_sig  = np.full(vs_glob.shape, self.sigma)
             
             return vs_med, vs_glob, vs_sig
         else:
-            vs_array = self.calcVs(vs0, k, n, self.sigma, z_array, eps_array)
+            if n_realiz == 0:
+                vs_array = self.calcVs(vs0, k, n, self.sigma, z_array, eps_array)
+            else:
+                vs_array = np.stack([self.calcVs(vs0[:,j], k[:,j], n, self.sigma, z_array, eps_array) for j in range(n_realiz)], axis=2)
             
             return vs_array
  
@@ -476,7 +492,7 @@ class VelModelSpatialVarying(VelModel):
         for j in range(n_pt_1):
             dist = scipylinalg.norm(XY_1[j] - XY_2[:,:],axis=1)
             cov_mat[j,:] = hyp_pi**2 + hyp_omega** 2 * np.exp(- dist/hyp_ell)
-        
+
         if n_pt_1 == n_pt_2:
             for i in range(n_pt_1):
                 cov_mat[i,i] += delta
@@ -517,35 +533,42 @@ class VelModelSpatialVarying(VelModel):
 
         '''
 
-        #number of training data points
-        n_pt_data = XY_data.shape[0]
+        if self.cond_flag: #conditional model
+            #number of training data points
+            n_pt_data = XY_data.shape[0]
+            
+            #mean value of training dataset
+            c_data_mu = c_data_mu.flatten()
+            
+            #uncertainty of training dataset
+            if c_data_sig is None: c_data_sig = np.zeros(n_pt_data)
+            c_data_cov = np.diag(c_data_sig**2) if c_data_sig.ndim == 1 else c_data_sig
+            assert( np.all(np.array(c_data_cov.shape) == n_pt_data) ),'Error. Inconsistent size of c_data_sig'
+            
+            #compute covariance between data 
+            K      = self.CalcCovNegExp(XY_data, XY_data, hyp_ell, hyp_omega, hyp_pi, delta=1e-10)
+            #covariance between data and new locations
+            k      = self.CalcCovNegExp(XY_new,  XY_data, hyp_ell, hyp_omega, hyp_pi)
+            #covariance between new locations
+            k_star = self.CalcCovNegExp(XY_new,  XY_new,  hyp_ell, hyp_omega, hyp_pi)
+            
+            #inverse of covariance matrix
+            K_inv = scipylinalg.inv(K)
+            #product of k * K^-1
+            kK_inv = k.dot(K_inv)
         
-        #mean value of training dataset
-        c_data_mu = c_data_mu.flatten()
-        
-        #uncertainty of training dataset
-        if c_data_sig is None: c_data_sig = np.zeros(n_pt_data)
-        c_data_cov = np.diag(c_data_sig**2) if c_data_sig.ndim == 1 else c_data_sig
-        assert( np.all(np.array(c_data_cov.shape) == n_pt_data) ),'Error. Inconsistent size of c_data_sig'
-        
-        #compute covariance between data 
-        K      = self.CalcCovNegExp(XY_data, XY_data, hyp_ell, hyp_omega, hyp_pi, delta=1e-9)
-        #covariance between data and new locations
-        k      = self.CalcCovNegExp(XY_new,  XY_data, hyp_ell, hyp_omega, hyp_pi)
-        #covariance between new locations
-        k_star = self.CalcCovNegExp(XY_new,  XY_new,  hyp_ell, hyp_omega, hyp_pi)
-        
-        #inverse of covariance matrix
-        K_inv = scipylinalg.inv(K)
-        #product of k * K^-1
-        kK_inv = k.dot(K_inv)
-        
-        #posterior mean and variance at new locations
-        c_new_mu  = kK_inv.dot(c_data_mu)
-        c_new_cov = k_star - kK_inv.dot(k.transpose()) + kK_inv.dot( c_data_cov.dot(kK_inv.transpose()) )
-        #posterior standard dev. at new locations
-        c_new_sig = np.sqrt(np.diag(c_new_cov))
-        
+            #posterior mean and variance at new locations
+            c_new_mu  = kK_inv.dot(c_data_mu)
+            c_new_cov = k_star - kK_inv.dot(k.transpose()) + kK_inv.dot( c_data_cov.dot(kK_inv.transpose()) )
+            #posterior standard dev. at new locations
+            c_new_sig = np.sqrt(np.diag(c_new_cov))
+            
+        else: #unconditional model
+            c_new_mu  = np.zeros(XY_new.shape[0])            
+            c_new_cov = self.CalcCovNegExp(XY_new,  XY_new,  hyp_ell, hyp_omega, hyp_pi)
+            c_new_sig = np.sqrt(np.diag(c_new_cov))
+            
+            
         return c_new_mu, c_new_sig, c_new_cov
 
     def MVNRnd(self, mean=None, cov=None, seed=None, n_samp=None):

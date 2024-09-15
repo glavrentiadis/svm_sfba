@@ -799,8 +799,8 @@ def PlotMap(lat_lims = None, lon_lims = None, flag_grid=False, title=None):
         
     '''
     
-    plt_res = '50m'
-    plt_scale = '50m'
+    plt_res = '10m'
+    plt_scale = '10m'
 
     #create figure
     fig = plt.figure(figsize=(10, 10))
