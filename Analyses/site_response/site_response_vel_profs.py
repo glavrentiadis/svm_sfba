@@ -38,7 +38,7 @@ def ExpKernel(loc_array, omega, ell, delta=0.001):
     n_dim = loc_array.ndim
 
     #distance matrix
-    dist_mat = np.array([norm(loc - loc_array, axis=1) if n_dim > 1 else np.abs(loc - loc_array)
+    dist_mat = np.array([np.norm(loc - loc_array, axis=1) if n_dim > 1 else np.abs(loc - loc_array)
                          for loc in loc_array])
     
     #covariance matrix
@@ -111,6 +111,7 @@ df_model_svar_param = pd.read_csv(fname_param_model_svar)
 df_prof_info =  df_model_stat_param.loc[:,['DSID','VelID','DSName','VelName',
                                            'Lon','Lat','X','Y',
                                            'Vs30','Z_max']]
+df_prof_info.rename(columns={'Z_max':'Zmax'}, inplace=True)
 
 #identify outlier profiles
 out_vel = ~np.any([np.logical_and(df_prof_info.DSID==d_id, df_prof_info.VelID==v_id).values 
@@ -185,13 +186,13 @@ for k, vprof_info in df_prof_info.iterrows():
 
     #avergate time velocity
     Dt = (df_vel_prof.loc[i_vprof,'Depth'].diff() / df_vel_prof.loc[i_vprof,'Vs']).sum()
-    Vs_avg = vprof_info.Z_max / Dt
+    Vs_avg = vprof_info.Zmax / Dt
     #store information
     df_prof_info.loc[k,'Dt']     = Dt
     df_prof_info.loc[k,'VsAvg'] = Vs_avg 
     
     #depth array
-    z_array = np.arange(0, vprof_info.Z_max+0.01, dz)
+    z_array = np.arange(0, vprof_info.Zmax+0.01, dz)
     
     #empirical data
     vs_array_emp = interp.interp1d(x=df_vel_prof.loc[i_vprof,'Depth'].values, 
@@ -204,7 +205,7 @@ for k, vprof_info in df_prof_info.iterrows():
     df_vel_usgs = model_vel_usgs.QueryZ(vprof_latlon, z=z_array)[2]
     if len(df_vel_usgs)==0 or np.any(np.isnan(df_vel_usgs.Vs.values)):
         #
-        df_vel_usgs = model_vel_usgs.QueryZ(vprof_latlon, z=np.arange(0, vprof_info.Z_max+500.01, dz))[2]      
+        df_vel_usgs = model_vel_usgs.QueryZ(vprof_latlon, z=np.arange(0, vprof_info.Zmax+500.01, dz))[2]      
         #new depth horizion
         z_shift = df_vel_usgs.loc[np.argmax(~np.isnan(df_vel_usgs.Vs.values)),'z2surf']
         #updated usgs model
@@ -239,7 +240,7 @@ for k, vprof_info in df_prof_info.iterrows():
     #define half-space
     if flag_common_halfspace:
         #halfspace depth
-        z_halfspace  = vprof_info.Z_max
+        z_halfspace  = vprof_info.Zmax
         #empirical profile half space
         vs_halfspace = df_vel_prof.loc[i_vprof,'Vs'].values[-1]
         #largest half-space value
@@ -285,10 +286,11 @@ for k, vprof_info in df_prof_info.iterrows():
     res_svar_all.append(np.log(vprof_svar.Vs) - np.log(vprof_emp.Vs))
     
     
+df_prof_info.loc[:,'fp'] = 1/(4*df_prof_info.Dt)
 #re-arange columns in 
 df_prof_info = df_prof_info.loc[:,['DSID','VelID','DSName','VelName','VelFName',
                                    'Lon','Lat','X','Y',
-                                   'Vs30','VsAvg','Dt','Z_max']]
+                                   'Vs30','VsAvg','Dt','fp','Zmax']]
 
 
 #%% Save Profiles
