@@ -145,9 +145,9 @@ hl4 = ax.errorbar(res_mmed, d_mbin, xerr=np.abs(np.vstack((res_m16prc,res_m84prc
                   capsize=8, fmt='none', ecolor=hl2[0].get_color(), linewidth=2,
                   label=r'$16-84^{th}$'+'\n Percentile')
 #edit properties
-ax.set_xlabel('residuals (log(V_{S~Obs})-log(V_{S~USGS}))', fontsize=30)
-ax.set_ylabel('Depth (m)',                                  fontsize=30)
-ax.legend(loc='lower left',                                 fontsize=30)
+ax.set_xlabel('residuals (log($V_{S~Obs}$)-log($V_{S~USGS}$))', fontsize=30)
+ax.set_ylabel('Depth (m)',                                      fontsize=30)
+ax.legend(loc='lower left',                                     fontsize=30)
 ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=28)
 ax.tick_params(axis='y', labelsize=28)
@@ -183,8 +183,8 @@ for k, vs30_b in enumerate(vs30_bins):
                       label=r'$16-84^{th}$'+'\n Percentile')
     #edit properties
     ax.set_xlabel('residuals (log($V_{S~Obs}$)-log($V_{S~USGS}$))', fontsize=30)
-    ax.set_ylabel('Depth (m)',                                  fontsize=30)
-    ax.legend(loc='lower left',                                 fontsize=30)
+    ax.set_ylabel('Depth (m)',                                      fontsize=30)
+    ax.legend(loc='lower left',                                     fontsize=30)
     ax.grid(which='both')
     ax.tick_params(axis='x', labelsize=28)
     ax.tick_params(axis='y', labelsize=28)
@@ -251,7 +251,7 @@ hl4 = ax.errorbar(res_mmed, vs_mbin, xerr=np.abs(np.vstack((res_m16prc,res_m84pr
                   label=r'$16-84^{th}$'+'\n Percentile')
 #edit properties
 ax.set_xlabel('residuals (log($V_{S~obs}$)-log($V_{S~USGS}$))', fontsize=30)
-ax.set_ylabel('$V_{S~obs}$ (m/sec)',                           fontsize=30)
+ax.set_ylabel('$V_{S~obs}$ (m/sec)',                            fontsize=30)
 ax.legend(loc='lower right',                                    fontsize=30)
 ax.grid(which='both')
 ax.tick_params(axis='x', labelsize=28)

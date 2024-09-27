@@ -6,8 +6,9 @@ Created on Sun Sep 10 14:49:02 2023
 @author: glavrent
 """
 import numpy as np
+from numpy.matlib import repmat
 
-def movingmean(y_array, x_array, x_bin):
+def movingmean(y_array, x_array, x_bin, rm_nan=False):
     '''
     Moving Mean Statistics
 
@@ -19,6 +20,8 @@ def movingmean(y_array, x_array, x_bin):
         Conditional variable.
     x_bin : np.array()
         Conditional variable bins.
+    rm_nan : bool
+        Flag remove nan value.
 
     Returns
     -------
@@ -35,6 +38,17 @@ def movingmean(y_array, x_array, x_bin):
     y_m84prc : np.array()
         Moving 84th percentile.
     '''
+    
+    #flaten input arrays
+    if y_array.ndim == 2:
+        x_array = repmat(x_array, y_array.shape[1], 1).T.flatten()
+        y_array = y_array.flatten()
+    
+    #remove nan values
+    if rm_nan:
+        i_nan = np.isnan(y_array)
+        x_array = x_array[~i_nan]
+        y_array = y_array[~i_nan]
     
     #bins' mid point
     x_mid = np.array([(x_bin[j]+x_bin[j+1])/2  for j in range(len(x_bin)-1)])

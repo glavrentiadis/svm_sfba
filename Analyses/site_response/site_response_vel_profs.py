@@ -55,7 +55,7 @@ def ExpKernel(loc_array, omega, ell, delta=0.001):
 #depth increment
 dz = .5
 #number of spatially-varying realizations 
-n_realiz_svar  = 25
+n_realiz_svar  = 10
 #number of along-depth realizations
 n_realiz_depth = 25
 
@@ -332,17 +332,17 @@ for k, vprof_info in df_prof_info.iterrows():
     #create figure - mean profiles
     fig, ax = plt.subplots(figsize = (10,10))
     #plot median profiles
-    hl_emp  = ax.step(vprof_emp_all[k].Vs,  vprof_emp_all[k].z,  linewidth=3.0, color='black', zorder=7, label='Velocity Profile')
-    hl_usgs = ax.plot(vprof_usgs_all[k].Vs, vprof_usgs_all[k].z, linewidth=3.0, color='black', zorder=6, linestyle='dashed', label=r'USGS')
-    hl_stat = ax.plot(vprof_stat_all[k].Vs, vprof_stat_all[k].z, linewidth=3.0, color='C1', zorder=4, label=r'Stationary Model')
-    hl_svar = ax.plot(vprof_svar_all[k].Vs, vprof_svar_all[k].z, linewidth=3.0, color='C0', zorder=5, label=r'Spatially Varying Model')
+    hl_emp  = ax.step(vprof_emp_all[k].Vs,  vprof_emp_all[k].z,  linewidth=3.0, color='black', zorder=3, label='Velocity Profile')
+    hl_usgs = ax.plot(vprof_usgs_all[k].Vs, vprof_usgs_all[k].z, linewidth=3.0, color='black', zorder=2, linestyle='dashed', label=r'USGS SFBA Model')
+    hl_stat = ax.plot(vprof_stat_all[k].Vs, vprof_stat_all[k].z, linewidth=3.0, color='C1', zorder=1, label=f'Stationary Model')
+    hl_svar = ax.plot(vprof_svar_all[k].Vs, vprof_svar_all[k].z, linewidth=3.0, color='C0', zorder=1, label=f'Spatially Varying Model\n(Μean)')
     #plot random realizations
-    hl_svar_realiz = ax.plot(vprof_svar_all[k].loc[:,cn_svar_realiz_mean], vprof_svar_all[k].z, linewidth=.5, color='gray', zorder=1)
+    hl_svar_realiz = ax.plot(vprof_svar_all[k].loc[:,cn_svar_realiz_mean], vprof_svar_all[k].z, linewidth=.5, color='C0', zorder=0, label=f'Spatially Varying Model\n(Uncertainty)')
     #edit properties
     ax.set_xlabel('$V_S$ (m/sec)',  fontsize=30)
     ax.set_ylabel('Depth (m)',      fontsize=30)
     ax.grid(which='both')
-    ax.legend(loc='lower left', fontsize=30)
+    ax.legend(handles=hl_emp+hl_usgs+hl_stat+hl_svar+[hl_svar_realiz[0]], loc='lower left', fontsize=30)
     ax.tick_params(axis='x', labelsize=28)
     ax.tick_params(axis='y', labelsize=28)
     ax.xaxis.set_tick_params(which='major', size=10, width=2, direction='in', top='on')
@@ -357,10 +357,10 @@ for k, vprof_info in df_prof_info.iterrows():
     #create figure - stationary model
     fig, ax = plt.subplots(figsize = (10,10))
     #plot median profiles
-    hl_emp  = ax.step(vprof_emp_all[k].Vs, vprof_emp_all[k].z, linewidth=3.0, color='black', linestyle='solid', zorder=7, label='Velocity Profile')
-    hl_stat_mean = ax.plot(vprof_stat_all[k].Vs, vprof_stat_all[k].z, linewidth=3.0,  color='C1', linestyle='solid', zorder=6, label=r'Stationary Model - Mean')
+    hl_emp  = ax.step(vprof_emp_all[k].Vs, vprof_emp_all[k].z, linewidth=3.0, color='black', linestyle='solid', zorder=3, label='Velocity Profile')
+    hl_stat_mean = ax.plot(vprof_stat_all[k].Vs, vprof_stat_all[k].z, linewidth=3.0,  color='C1', linestyle='solid', zorder=1, label=f'Stationary Model\n(Mean)')
     #plot along-depth random realizations
-    hl_stat_drlz = ax.plot(vprof_stat_all[k].loc[:,cn_stat_realiz_dvar], vprof_stat_all[k].z, linewidth=0.5, color='C1', linestyle='dashed', zorder=4, label=r'Stationary Model - Realizations')
+    hl_stat_drlz = ax.plot(vprof_stat_all[k].loc[:,cn_stat_realiz_dvar], vprof_stat_all[k].z, linewidth=0.5, color='gray', linestyle='dashed', zorder=0, label=f'Stationary Model\n(Random Realizations)')
     #edit properties
     ax.set_xlabel('$V_S$ (m/sec)',  fontsize=30)
     ax.set_ylabel('Depth (m)',      fontsize=30)
@@ -380,10 +380,10 @@ for k, vprof_info in df_prof_info.iterrows():
     #create figure - spatially model
     fig, ax = plt.subplots(figsize = (10,10))
     #plot median profiles
-    hl_emp  = ax.step(vprof_emp_all[k].Vs, vprof_emp_all[k].z, linewidth=3.0, color='black', linestyle='solid', zorder=7, label='Velocity Profile')
-    hl_svar_mean = ax.plot(vprof_svar_all[k].Vs, vprof_svar_all[k].z, linewidth=3.0,  color='C0', linestyle='solid', zorder=6, label=r'Spatially Varying Model - Mean')
+    hl_emp  = ax.step(vprof_emp_all[k].Vs, vprof_emp_all[k].z, linewidth=3.0, color='black', linestyle='solid', zorder=3, label='Velocity Profile')
+    hl_svar_mean = ax.plot(vprof_svar_all[k].Vs, vprof_svar_all[k].z, linewidth=3.0,  color='C0', linestyle='solid', zorder=1, label=f'Spatially Varying Model\n(Mean)')
     #plot along-depth random realizations
-    hl_svar_drlz = ax.plot(vprof_svar_all[k].loc[:,cn_svar_realiz_dvar], vprof_stat_all[k].z, linewidth=0.5, color='C0', linestyle='dashed', zorder=5, label=r'Spatially Varying Model - Realizations')
+    hl_svar_drlz = ax.plot(vprof_svar_all[k].loc[:,cn_svar_realiz_dvar], vprof_stat_all[k].z, linewidth=0.5, color='gray', linestyle='dashed', zorder=0, label=f'Spatially Varying Model\n(Random Realizations)')
     #edit properties
     ax.set_xlabel('$V_S$ (m/sec)',  fontsize=30)
     ax.set_ylabel('Depth (m)',      fontsize=30)

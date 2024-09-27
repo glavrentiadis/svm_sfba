@@ -17,7 +17,9 @@ import pandas as pd
 from scipy import interpolate as interp
 #ploting libraries
 import matplotlib.pyplot as plt
-
+#user functions
+sys.path.insert(0,'../python_lib/statistics')
+from moving_mean import movingmean
 
 #%% Define Variables
 ### ======================================
@@ -181,6 +183,7 @@ for j, f_b in enumerate(fn_score_binned):
     score_emp_svar      = df_score_binned[f_b].emp_svar.values
     score_emp_svar_srlz = df_score_binned[f_b].loc[:,cn_svar_srlz].values
     if ver > 1:
+        score_emp_stat_drlz      = df_score_binned[f_b].loc[:,cn_stat_drlz].values
         score_emp_svar_srlz_drlz = df_score_binned[f_b].loc[:,cn_svar_srlz_drlz].values
         
     #print frequency score
@@ -188,9 +191,10 @@ for j, f_b in enumerate(fn_score_binned):
     print("\t USGS bias (mean, std): %.2f, %.2f"%(np.nanmean(score_emp_usgs), np.nanstd(score_emp_usgs)))
     print("\t Stat bias (mean, std): %.2f, %.2f"%(np.nanmean(score_emp_stat), np.nanstd(score_emp_stat)))
     print("\t Svar bias (mean, std): %.2f, %.2f"%(np.nanmean(score_emp_svar), np.nanstd(score_emp_svar)))
-    print("\t Stat bias w/ var (mean, std): %.2f, %.2f"%(np.nanmean(score_emp_svar_srlz), np.nanstd(score_emp_svar_srlz)))
+    print("\t Svar bias w/ spatial var (mean, std): %.2f, %.2f"%(np.nanmean(score_emp_svar_srlz), np.nanstd(score_emp_svar_srlz)))
     if ver > 1:
-        print("\t Svar bias w/ var (mean, std): %.2f, %.2f"%(np.nanmean(score_emp_svar_srlz_drlz), np.nanstd(score_emp_svar_srlz_drlz)))
+        print("\t Stat bias w/ depth var (mean, std): %.2f, %.2f"%(np.nanmean(score_emp_stat_drlz), np.nanstd(score_emp_stat_drlz)))
+        print("\t Svar bias w/ spatial \& depth var (mean, std): %.2f, %.2f"%(np.nanmean(score_emp_svar_srlz_drlz), np.nanstd(score_emp_svar_srlz_drlz)))
             
 #%% Plotting
 ### ======================================
@@ -211,27 +215,32 @@ for j, f_b in enumerate(fn_score_binned):
     score_emp_usgs          = df_score_binned[f_b].emp_usgs.values
     score_emp_stat          = df_score_binned[f_b].emp_stat.values
     score_emp_svar          = df_score_binned[f_b].emp_svar.values
+    score_emp_svar_srlz     = df_score_binned[f_b].loc[:,cn_svar_srlz].values
     score_emp_svar_srlz_mu  = df_score_binned[f_b].loc[:,cn_svar_srlz].mean(axis=1).values
     score_emp_svar_srlz_prc = df_score_binned[f_b].loc[:,cn_svar_srlz].quantile([.16, .84], axis=1).values
     if ver > 1:
+        score_emp_stat_drlz          = df_score_binned[f_b].loc[:,cn_stat_drlz].values
         score_emp_stat_drlz_mu       = df_score_binned[f_b].loc[:,cn_stat_drlz].mean(axis=1).values
         score_emp_stat_drlz_prc      = df_score_binned[f_b].loc[:,cn_stat_drlz].quantile([.16, .84], axis=1).values
+        score_emp_svar_srlz_drlz     = df_score_binned[f_b].loc[:,cn_svar_srlz_drlz].values
         score_emp_svar_srlz_drlz_mu  = df_score_binned[f_b].loc[:,cn_svar_srlz_drlz].mean(axis=1).values
         score_emp_svar_srlz_drlz_prc = df_score_binned[f_b].loc[:,cn_svar_srlz_drlz].quantile([.16, .84], axis=1).values
-        
+    
+    # score scatter plot with all models
+    #  -  -  -  -  -  -  -  -
     #create figure score vs Vs30 - mean
     fig, ax = plt.subplots(figsize=(10,8))
     fname_fig = '%s_%s_vs30'%(score_type, f_b) 
     #usgs
-    hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', color='black', label='USGS')
+    hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', color='black', label='USGS SFBA Model')
     #stationary model
-    hl_stat = ax.semilogx(vs30_array, score_emp_stat, 's', color=cmap(1), label='Stationary Model')
+    hl_stat = ax.semilogx(vs30_array, score_emp_stat, '^', color=cmap(1), label='Stationary Model')
     #spatially varying (mean)
     hl_svar = ax.semilogx(vs30_array, score_emp_svar, 'd', color=cmap(0), label='Spatially Vayring Model')
     #edit properties
-    ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
-    ax.set_ylabel(r'Score',             fontsize=32)
-    ax.legend(loc='lower right',        fontsize=30)
+    ax.set_xlabel(r'$V_{S30}$ (m/sec)',   fontsize=32)
+    ax.set_ylabel(r'Score',               fontsize=32)
+    if j==0: ax.legend(loc='lower right', fontsize=30)
     ax.grid(which='both')
     ax.tick_params(axis='x', labelsize=30)
     ax.tick_params(axis='y', labelsize=30)
@@ -245,9 +254,9 @@ for j, f_b in enumerate(fn_score_binned):
     fig, ax = plt.subplots(figsize=(10,8))
     fname_fig = '%s_%s_vs30_srlz'%(score_type, f_b) 
     #usgs
-    hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', color='black', label='USGS')
+    hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', color='black', label='USGS SFBA Model')
     #stationary model
-    hl_stat = ax.semilogx(vs30_array, score_emp_stat, 's', color=cmap(1), label='Stationary Model')
+    hl_stat = ax.semilogx(vs30_array, score_emp_stat, '^', color=cmap(1), label='Stationary Model')
     #spatially varying (mean)
     hl_svar_mu  = ax.semilogx(vs30_array, score_emp_svar_srlz_mu, 'd', color=cmap(0), label='Spatially Varying Model')
     #spatially varying (std)
@@ -255,9 +264,9 @@ for j, f_b in enumerate(fn_score_binned):
                               yerr=np.abs(score_emp_svar_srlz_prc - score_emp_svar_srlz_mu),
                               capsize=8, fmt='none', ecolor=hl_svar_mu[0].get_color(), linewidth=0.5)
     #edit properties
-    ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
-    ax.set_ylabel(r'Score',             fontsize=32)
-    if j==0: ax.legend(loc='lower right',        fontsize=30)
+    ax.set_xlabel(r'$V_{S30}$ (m/sec)',   fontsize=32)
+    ax.set_ylabel(r'Score',               fontsize=32)
+    if j==0: ax.legend(loc='lower right', fontsize=30)
     ax.tick_params(axis='x', labelsize=30)
     ax.tick_params(axis='y', labelsize=30)
     ax.grid(which='both')
@@ -272,12 +281,12 @@ for j, f_b in enumerate(fn_score_binned):
         fig, ax = plt.subplots(figsize=(10,8))
         fname_fig = '%s_%s_vs30_srlz_drlz'%(score_type, f_b) 
         #usgs
-        hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', color='black', label='USGS')
+        hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', color='black', label='USGS SFBA Model')
         #stationary model (mean)
-        hl_stat_mu = ax.semilogx(vs30_array, score_emp_stat_drlz_mu, 's', 
+        hl_stat_mu = ax.semilogx(vs30_array, score_emp_stat_drlz_mu, '^', 
                                  color=cmap(1), label='Stationary Model')
         #spatially varying (std)
-        hl_svar_prc = ax.errorbar(vs30_array, y=score_emp_stat_drlz_mu, 
+        hl_stat_prc = ax.errorbar(vs30_array, y=score_emp_stat_drlz_mu, 
                                   yerr=np.abs(score_emp_stat_drlz_prc - score_emp_stat_drlz_mu),
                                   capsize=8, fmt='none', ecolor=hl_stat_mu[0].get_color(), linewidth=0.5)
         #spatially varying (mean)
@@ -288,9 +297,9 @@ for j, f_b in enumerate(fn_score_binned):
                                   yerr=np.abs(score_emp_svar_srlz_drlz_prc - score_emp_svar_srlz_drlz_mu),
                                   capsize=8, fmt='none', ecolor=hl_svar_mu[0].get_color(), linewidth=0.5)
         #edit properties
-        ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
-        ax.set_ylabel(r'Score',             fontsize=32)
-        if j==0: ax.legend(loc='lower right',        fontsize=30)
+        ax.set_xlabel(r'$V_{S30}$ (m/sec)',   fontsize=32)
+        ax.set_ylabel(r'Score',               fontsize=32)
+        if j==0: ax.legend(loc='lower right', fontsize=30)
         ax.tick_params(axis='x', labelsize=30)
         ax.tick_params(axis='y', labelsize=30)
         ax.grid(which='both')
@@ -304,19 +313,19 @@ for j, f_b in enumerate(fn_score_binned):
         fig, ax = plt.subplots(figsize=(10,8))
         fname_fig = '%s_%s_vs30_cmp'%(score_type, f_b) 
         #stationary model
-        hl_stat    = ax.semilogx(vs30_array, score_emp_stat, 's', 
+        hl_stat    = ax.semilogx(vs30_array, score_emp_stat, '^', 
                                  color=cmap(1), label='Stat. Model - Mean')
         hl_stat_mu = ax.semilogx(vs30_array, score_emp_stat_drlz_mu, 'd', 
                                  color=cmap(1), label='Stat. Model - Varying')
         #spatially varying model
-        hl_svar     = ax.semilogx(vs30_array, score_emp_svar, 's', 
+        hl_svar     = ax.semilogx(vs30_array, score_emp_svar, '^', 
                                   color=cmap(0), label='Spat. Vayring Model')
         hl_svar_mu  = ax.semilogx(vs30_array, score_emp_svar_srlz_drlz_mu, 'd', 
                                   color=cmap(0), label='Spat. Vayring Model - Varying')
         #edit properties
-        ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
-        ax.set_ylabel(r'Score',             fontsize=32)
-        if j==0: ax.legend(loc='lower right',        fontsize=30)
+        ax.set_xlabel(r'$V_{S30}$ (m/sec)',   fontsize=32)
+        ax.set_ylabel(r'Score',               fontsize=32)
+        if j==0: ax.legend(loc='lower right', fontsize=30)
         ax.tick_params(axis='x', labelsize=30)
         ax.tick_params(axis='y', labelsize=30)
         ax.grid(which='both')
@@ -326,10 +335,200 @@ for j, f_b in enumerate(fn_score_binned):
         #save figure
         fig.savefig( dir_fig + fname_fig + '.png' )
     
+    
+    # individual plots with binned residuals 
+    #  -  -  -  -  -  -  -  -
+    #short vs30 values
+    i_sort    = np.argsort( vs30_array )
+    #vs30 bins
+    vs30_bins = np.logspace(np.log10(100),np.log10(2000),7)
+    #binned scores
+    score_emp_usgs_vs30bins, score_emp_usgs_mmed, score_emp_usgs_mmean, _, score_emp_usgs_m16prc, score_emp_usgs_m84prc = \
+        movingmean(score_emp_usgs[i_sort], vs30_array[i_sort], vs30_bins, rm_nan=True)
+    score_emp_stat_vs30bins, score_emp_stat_mmed, score_emp_stat_mmean, _, score_emp_stat_m16prc, score_emp_stat_m84prc = \
+        movingmean(score_emp_stat[i_sort], vs30_array[i_sort], vs30_bins, rm_nan=True)
+    score_emp_svar_vs30bins, score_emp_svar_mmed, score_emp_svar_mmean, _, score_emp_svar_m16prc, score_emp_svar_m84prc = \
+        movingmean(score_emp_svar[i_sort], vs30_array[i_sort], vs30_bins, rm_nan=True)
+    score_emp_svar_srlz_vs30bins, score_emp_svar_srlz_mmed, score_emp_svar_srlz_mmean, _, score_emp_svar_srlz_m16prc, score_emp_svar_srlz_m84prc = \
+        movingmean(score_emp_svar_srlz[i_sort], vs30_array[i_sort], vs30_bins, rm_nan=True)
+    if ver > 1:
+        score_emp_stat_drlz_vs30bins, score_emp_stat_drlz_mmed, score_emp_stat_drlz_mmean, _, score_emp_stat_drlz_m16prc, score_emp_stat_drlz_m84prc = \
+            movingmean(score_emp_stat_drlz[i_sort], vs30_array[i_sort], vs30_bins, rm_nan=True)
+        score_emp_svar_srlz_drlz_vs30bins, score_emp_svar_srlz_drlz_mmed, score_emp_svar_srlz_drlz_mmean, _, score_emp_svar_srlz_drlz_m16prc, score_emp_svar_srlz_drlz_m84prc = \
+            movingmean(score_emp_svar_srlz_drlz[i_sort], vs30_array[i_sort], vs30_bins, rm_nan=True)
+
+    #create figure score vs Vs30 - mean / usgs model
+    fig, ax = plt.subplots(figsize=(10,8))
+    fname_fig = '%s_%s_vs30_%s'%(score_type, f_b, 'usgs') 
+    #usgs
+    hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', markersize=4, color='gray')
+    #usgs (binned - mean)
+    hl_usgs_mean = ax.semilogx(score_emp_usgs_vs30bins, score_emp_usgs_mmean, 's', color='black', markersize=10, label='Mean')
+    #usgs (binned - 16/84prc)
+    hl_usgs_prc  = ax.errorbar(score_emp_usgs_vs30bins, score_emp_usgs_mmean, 
+                               yerr=np.abs(np.vstack((score_emp_usgs_m16prc,score_emp_usgs_m84prc)) - score_emp_usgs_mmean),
+                               capsize=10, fmt='none', ecolor=hl_usgs_mean[0].get_color(), linewidth=2,
+                               label=r'$16-84^{th}$ Percentile')
+    #edit properties
+    ax.set_xlabel(r'$V_{S30}$ (m/sec)',   fontsize=32)
+    ax.set_ylabel(r'Score',               fontsize=32)
+    if j==0: ax.legend(loc='lower right', fontsize=30)
+    ax.grid(which='both')
+    ax.tick_params(axis='x', labelsize=30)
+    ax.tick_params(axis='y', labelsize=30)
+    ax.set_xlim([90, 2500])
+    ax.set_ylim([-10, 10])
+    fig.tight_layout()
+    #save figure
+    fig.savefig( dir_fig + fname_fig + '.png' )
+    
+    #create figure score vs Vs30 - mean / stationary model
+    fig, ax = plt.subplots(figsize=(10,8))
+    fname_fig = '%s_%s_vs30_%s'%(score_type, f_b, 'stat') 
+    #stationary model
+    hl_stat = ax.semilogx(vs30_array, score_emp_stat, '^', markersize=4, color='gray')
+    #stationary model (binned - mean)
+    hl_stat_bin_mean = ax.semilogx(score_emp_stat_vs30bins, score_emp_stat_mmean, 's', color='black', markersize=10, label='Mean')
+    #stationary model (binned - 16/84prc)
+    hl_stat_bin_prc  = ax.errorbar(score_emp_stat_vs30bins, score_emp_stat_mmean, 
+                                   yerr=np.abs(np.vstack((score_emp_stat_m16prc,score_emp_stat_m84prc)) - score_emp_stat_mmean),
+                                   capsize=10, fmt='none', ecolor=hl_stat_bin_mean[0].get_color(), linewidth=2,
+                                   label=r'$16-84^{th}$ Percentile')
+    #edit properties
+    ax.set_xlabel(r'$V_{S30}$ (m/sec)',   fontsize=32)
+    ax.set_ylabel(r'Score',               fontsize=32)
+    if j==0: ax.legend(loc='lower right', fontsize=30)
+    ax.grid(which='both')
+    ax.tick_params(axis='x', labelsize=30)
+    ax.tick_params(axis='y', labelsize=30)
+    ax.set_xlim([90, 2500])
+    ax.set_ylim([-10, 10])
+    fig.tight_layout()
+    #save figure
+    fig.savefig( dir_fig + fname_fig + '.png' )
+
+    #create figure score vs Vs30 - mean / spatially varying model
+    fig, ax = plt.subplots(figsize=(10,8))
+    fname_fig = '%s_%s_vs30_%s'%(score_type, f_b, 'svar') 
+    #spatially varying model
+    hl_svar = ax.semilogx(vs30_array, score_emp_svar, 'd', markersize=4, color='gray')
+    #spatially varying model (binned mean)
+    hl_svar_bin_mean = ax.semilogx(score_emp_svar_vs30bins, score_emp_svar_mmean, 's', color='black', markersize=10, label='Mean')
+    #spatially varying model (binned 16/84prc)
+    hl_svar_bin_prc  = ax.errorbar(score_emp_svar_vs30bins, score_emp_svar_mmean, 
+                               yerr=np.abs(np.vstack((score_emp_svar_m16prc,score_emp_svar_m84prc)) - score_emp_svar_mmean),
+                               capsize=10, fmt='none', ecolor=hl_svar_bin_mean[0].get_color(), linewidth=2,
+                               label=r'$16-84^{th}$ Percentile')
+    #edit properties
+    ax.set_xlabel(r'$V_{S30}$ (m/sec)',   fontsize=32)
+    ax.set_ylabel(r'Score',               fontsize=32)
+    if j==0: ax.legend(loc='lower right', fontsize=30)
+    ax.grid(which='both')
+    ax.tick_params(axis='x', labelsize=30)
+    ax.tick_params(axis='y', labelsize=30)
+    ax.set_xlim([90, 2500])
+    ax.set_ylim([-10, 10])
+    fig.tight_layout()
+    #save figure
+    fig.savefig( dir_fig + fname_fig + '.png' )
+
+    #create figure score vs Vs30 - spatial variability / spatially varying model
+    fig, ax = plt.subplots(figsize=(10,8))
+    fname_fig = '%s_%s_vs30_srlz_%s'%(score_type, f_b, 'svar') 
+    #stationary model (mean)
+    hl_svar_mu = ax.semilogx(vs30_array, score_emp_svar_srlz_mu, 'd', markersize=4, color='gray')
+    #spatially varying (std)
+    hl_svar_prc = ax.errorbar(vs30_array, y=score_emp_svar_srlz_mu, 
+                              yerr=np.abs(score_emp_svar_srlz_prc - score_emp_svar_srlz_mu),
+                              capsize=4, fmt='none', ecolor=hl_svar_mu[0].get_color(), linewidth=0.5)
+    #stationary model (binned - mean)
+    hl_svar_bin_mean = ax.semilogx(score_emp_svar_srlz_vs30bins, score_emp_svar_srlz_mmean, 
+                                   's', color='black', markersize=10, label='Mean')
+    #stationary model (binned - 16/84prc)
+    hl_svar_bin_prc  = ax.errorbar(score_emp_svar_srlz_vs30bins, score_emp_svar_srlz_mmean, 
+                                   yerr=np.abs(np.vstack((score_emp_svar_srlz_m16prc,score_emp_svar_srlz_m84prc)) - score_emp_svar_srlz_mmean),
+                                   capsize=10, fmt='none', ecolor=hl_svar_bin_mean[0].get_color(), linewidth=2,
+                                   label=r'$16-84^{th}$ Percentile')
+    #edit properties
+    ax.set_xlabel(r'$V_{S30}$ (m/sec)',   fontsize=32)
+    ax.set_ylabel(r'Score',               fontsize=32)
+    if j==0: ax.legend(loc='lower right', fontsize=30)
+    ax.tick_params(axis='x', labelsize=30)
+    ax.tick_params(axis='y', labelsize=30)
+    ax.grid(which='both')
+    ax.set_xlim([90, 2500])
+    ax.set_ylim([-10, 10])
+    fig.tight_layout()
+    #save figure
+    fig.savefig( dir_fig + fname_fig + '.png' )
+
+    if ver > 1:
+        #create figure score vs Vs30 - depth variability / stationary model
+        fig, ax = plt.subplots(figsize=(10,8))
+        fname_fig = '%s_%s_vs30_drlz_%s'%(score_type, f_b, 'stat') 
+        #stationary model (mean)
+        hl_stat_mu = ax.semilogx(vs30_array, score_emp_stat_drlz_mu, '^', markersize=4, color='gray')
+        #spatially varying (std)
+        hl_stat_prc = ax.errorbar(vs30_array, y=score_emp_stat_drlz_mu, 
+                                  yerr=np.abs(score_emp_stat_drlz_prc - score_emp_stat_drlz_mu),
+                                  capsize=4, fmt='none', ecolor=hl_stat_mu[0].get_color(), linewidth=0.5)
+        #stationary model (binned - mean)
+        hl_stat_bin_mean = ax.semilogx(score_emp_stat_drlz_vs30bins, score_emp_stat_drlz_mmean, 
+                                       's', color='black', markersize=10, label='Mean')
+        #stationary model (binned - 16/84prc)
+        hl_stat_bin_prc  = ax.errorbar(score_emp_stat_drlz_vs30bins, score_emp_stat_drlz_mmean, 
+                                       yerr=np.abs(np.vstack((score_emp_stat_drlz_m16prc,score_emp_stat_drlz_m84prc)) - score_emp_stat_drlz_mmean),
+                                       capsize=10, fmt='none', ecolor=hl_stat_bin_mean[0].get_color(), linewidth=2,
+                                       label=r'$16-84^{th}$ Percentile')
+        #edit properties
+        ax.set_xlabel(r'$V_{S30}$ (m/sec)',   fontsize=32)
+        ax.set_ylabel(r'Score',               fontsize=32)
+        if j==0: ax.legend(loc='lower right', fontsize=30)
+        ax.tick_params(axis='x', labelsize=30)
+        ax.tick_params(axis='y', labelsize=30)
+        ax.grid(which='both')
+        ax.set_xlim([90, 2500])
+        ax.set_ylim([-10, 10])
+        fig.tight_layout()
+        #save figure
+        fig.savefig( dir_fig + fname_fig + '.png' )
+        
+        #create figure score vs Vs30 - spatial & depth variability / spatially varying model
+        fig, ax = plt.subplots(figsize=(10,8))
+        fname_fig = '%s_%s_vs30_srlz_drlz_%s'%(score_type, f_b, 'svar') 
+        #stationary model (mean)
+        hl_svar_mu = ax.semilogx(vs30_array, score_emp_svar_srlz_drlz_mu, 'd', markersize=4, color='gray')
+        #spatially varying (std)
+        hl_svar_prc = ax.errorbar(vs30_array, y=score_emp_svar_srlz_drlz_mu, 
+                                  yerr=np.abs(score_emp_svar_srlz_drlz_prc - score_emp_svar_srlz_drlz_mu),
+                                  capsize=4, fmt='none', ecolor=hl_svar_mu[0].get_color(), linewidth=0.5)
+        #stationary model (binned - mean)
+        hl_svar_bin_mean = ax.semilogx(score_emp_svar_srlz_drlz_vs30bins, score_emp_svar_srlz_drlz_mmean, 
+                                       's', color='black', markersize=10, label='Mean')
+        #stationary model (binned - 16/84prc)
+        hl_svar_bin_prc  = ax.errorbar(score_emp_svar_srlz_drlz_vs30bins, score_emp_svar_srlz_drlz_mmean, 
+                                       yerr=np.abs(np.vstack((score_emp_svar_srlz_drlz_m16prc,score_emp_svar_srlz_drlz_m84prc)) - score_emp_svar_srlz_drlz_mmean),
+                                       capsize=10, fmt='none', ecolor=hl_svar_bin_mean[0].get_color(), linewidth=2,
+                                       label=r'$16-84^{th}$ Percentile')
+        #edit properties
+        ax.set_xlabel(r'$V_{S30}$ (m/sec)',   fontsize=32)
+        ax.set_ylabel(r'Score',               fontsize=32)
+        if j==0: ax.legend(loc='lower right', fontsize=30)
+        ax.tick_params(axis='x', labelsize=30)
+        ax.tick_params(axis='y', labelsize=30)
+        ax.grid(which='both')
+        ax.set_xlim([90, 2500])
+        ax.set_ylim([-10, 10])
+        fig.tight_layout()
+        #save figure
+        fig.savefig( dir_fig + fname_fig + '.png' )
+
 
 # plot average scores
 # - - - - - - - - - - - -
 if not df_score_total is None:
+    # score scatter plot with all models
+    #  -  -  -  -  -  -  -  -
     #vs30 array
     vs30_array = df_score_total.Vs30.values
     #scorring arrays
@@ -343,28 +542,14 @@ if not df_score_total is None:
         score_emp_stat_drlz_prc      = df_score_total.loc[:,cn_stat_drlz].quantile([.16, .84], axis=1).values
         score_emp_svar_srlz_drlz_mu  = df_score_total.loc[:,cn_svar_srlz_drlz].mean(axis=1).values
         score_emp_svar_srlz_drlz_prc = df_score_total.loc[:,cn_svar_srlz_drlz].quantile([.16, .84], axis=1).values
-       
-        #vs30 array
-        vs30_array = df_score_binned[f_b].Vs30.values
-        #scorring arrays
-        score_emp_usgs          = df_score_binned[f_b].emp_usgs.values
-        score_emp_stat          = df_score_binned[f_b].emp_stat.values
-        score_emp_svar          = df_score_binned[f_b].emp_svar.values
-        score_emp_svar_srlz_mu  = df_score_binned[f_b].loc[:,cn_svar_srlz].mean(axis=1).values
-        score_emp_svar_srlz_prc = df_score_binned[f_b].loc[:,cn_svar_srlz].quantile([.16, .84], axis=1).values
-        if ver > 1:
-            score_emp_stat_drlz_mu       = df_score_binned[f_b].loc[:,cn_stat_drlz].mean(axis=1).values
-            score_emp_stat_drlz_prc      = df_score_binned[f_b].loc[:,cn_stat_drlz].quantile([.16, .84], axis=1).values
-            score_emp_svar_srlz_drlz_mu  = df_score_binned[f_b].loc[:,cn_svar_srlz_drlz].mean(axis=1).values
-            score_emp_svar_srlz_drlz_prc = df_score_binned[f_b].loc[:,cn_svar_srlz_drlz].quantile([.16, .84], axis=1).values
             
     #create figure score vs Vs30 - mean
     fig, ax = plt.subplots(figsize=(10,8))
     fname_fig = '%s_%s_vs30'%(score_type, 'average') 
     #usgs
-    hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', color='black', label='USGS')
+    hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', color='black', label='USGS SFBA Model')
     #stationary model
-    hl_stat = ax.semilogx(vs30_array, score_emp_stat, 's', color=cmap(1), label='Stationary Model')
+    hl_stat = ax.semilogx(vs30_array, score_emp_stat, '^', color=cmap(1), label='Stationary Model')
     #spatially varying (mean)
     hl_svar = ax.semilogx(vs30_array, score_emp_svar, 'd', color=cmap(0), label='Spatially Varying Model')
     #edit properties
@@ -384,9 +569,9 @@ if not df_score_total is None:
     fig, ax = plt.subplots(figsize=(10,8))
     fname_fig = '%s_%s_vs30_srlz'%(score_type, 'average') 
     #usgs
-    hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', color='black', label='USGS')
+    hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', color='black', label='USGS SFBA Model')
     #stationary model
-    hl_stat = ax.semilogx(vs30_array, score_emp_stat, 's', color=cmap(1), label='Stationary Model')
+    hl_stat = ax.semilogx(vs30_array, score_emp_stat, '^', color=cmap(1), label='Stationary Model')
     #spatially varying (mean)
     hl_svar_mu  = ax.semilogx(vs30_array, score_emp_svar_srlz_mu, 'd', color=cmap(0), label='Spatially Varying Model')
     #spatially varying (std)
@@ -411,12 +596,12 @@ if not df_score_total is None:
         fig, ax = plt.subplots(figsize=(10,8))
         fname_fig = '%s_%s_vs30_srlz_drlz'%(score_type, 'average') 
         #usgs
-        hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', color='black', label='USGS')
+        hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', color='black', label='USGS SFBA Model')
         #stationary model (mean)
-        hl_stat_mu = ax.semilogx(vs30_array, score_emp_stat_drlz_mu, 's', 
+        hl_stat_mu = ax.semilogx(vs30_array, score_emp_stat_drlz_mu, '^', 
                                  color=cmap(1), label='Stationary Model')
         #stationary varying (std)
-        hl_svar_prc = ax.errorbar(vs30_array, y=score_emp_stat_drlz_mu, 
+        hl_stat_prc = ax.errorbar(vs30_array, y=score_emp_stat_drlz_mu, 
                                   yerr=np.abs(score_emp_stat_drlz_prc - score_emp_stat_drlz_mu),
                                   capsize=8, fmt='none', ecolor=hl_stat_mu[0].get_color(), linewidth=0.5)
         #spatially varying (mean)
@@ -444,15 +629,202 @@ if not df_score_total is None:
         fig, ax = plt.subplots(figsize=(10,8))
         fname_fig = '%s_%s_vs30_cmp'%(score_type, 'average') 
         #stationary model
-        hl_stat    = ax.semilogx(vs30_array, score_emp_stat, 's', 
+        hl_stat    = ax.semilogx(vs30_array, score_emp_stat, '^', 
                                  color=cmap(1), label='Stationary Model - Mean')
         hl_stat_mu = ax.semilogx(vs30_array, score_emp_stat_drlz_mu, 'd', 
                                  color=cmap(1), label='Stationary Model - Varying')
         #spatially varying model
-        hl_svar     = ax.semilogx(vs30_array, score_emp_svar, 's', 
+        hl_svar     = ax.semilogx(vs30_array, score_emp_svar, '^', 
                                   color=cmap(0), label='Spatially Varying Model - Mean')
         hl_svar_mu  = ax.semilogx(vs30_array, score_emp_svar_srlz_drlz_mu, 'd', 
                                   color=cmap(0), label='Spatially Varying Model - Varying')
+        #edit properties
+        ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
+        ax.set_ylabel(r'Score',             fontsize=32)
+        ax.legend(loc='lower right',        fontsize=30)
+        ax.tick_params(axis='x', labelsize=30)
+        ax.tick_params(axis='y', labelsize=30)
+        ax.grid(which='both')
+        ax.set_xlim([90, 2500])
+        ax.set_ylim([-10, 10])
+        fig.tight_layout()
+        #save figure
+        fig.savefig( dir_fig + fname_fig + '.png' )
+
+    # individual plots with binned residuals 
+    #  -  -  -  -  -  -  -  -
+    #short vs30 values
+    i_sort    = np.argsort( vs30_array )
+    #vs30 bins
+    vs30_bins = np.logspace(np.log10(100),np.log10(2000),5)
+    #binned scores
+    score_emp_usgs_vs30bins, score_emp_usgs_mmed, score_emp_usgs_mmean, _, score_emp_usgs_m16prc, score_emp_usgs_m84prc = \
+        movingmean(score_emp_usgs[i_sort], vs30_array[i_sort], vs30_bins, rmnan=True)
+    score_emp_stat_vs30bins, score_emp_stat_mmed, score_emp_stat_mmean, _, score_emp_stat_m16prc, score_emp_stat_m84prc = \
+        movingmean(score_emp_stat[i_sort], vs30_array[i_sort], vs30_bins, rmnan=True)
+    score_emp_svar_vs30bins, score_emp_svar_mmed, score_emp_svar_mmean, _, score_emp_svar_m16prc, score_emp_svar_m84prc = \
+        movingmean(score_emp_svar[i_sort], vs30_array[i_sort], vs30_bins, rmnan=True)
+    score_emp_svar_srlz_vs30bins, score_emp_svar_srlz_mmed, score_emp_svar_srlz_mmean, _, score_emp_svar_srlz_m16prc, score_emp_svar_srlz_m84prc = \
+        movingmean(score_emp_svar_srlz[i_sort], vs30_array[i_sort], vs30_bins, rm_nan=True)
+    if ver > 1:
+        score_emp_stat_drlz_vs30bins, score_emp_stat_drlz_mmed, score_emp_stat_drlz_mmean, _, score_emp_stat_drlz_m16prc, score_emp_stat_drlz_m84prc = \
+            movingmean(score_emp_stat_drlz[i_sort], vs30_array[i_sort], vs30_bins, rm_nan=True)
+        score_emp_svar_srlz_drlz_vs30bins, score_emp_svar_srlz_drlz_mmed, score_emp_svar_srlz_drlz_mmean, _, score_emp_svar_srlz_drlz_m16prc, score_emp_svar_srlz_drlz_m84prc = \
+            movingmean(score_emp_svar_srlz_drlz[i_sort], vs30_array[i_sort], vs30_bins, rm_nan=True)
+
+    #create figure score vs Vs30 - mean / usgs model
+    fig, ax = plt.subplots(figsize=(10,8))
+    fname_fig = '%s_%s_vs30_%s'%(score_type, 'average', 'usgs') 
+    #usgs
+    hl_usgs = ax.semilogx(vs30_array, score_emp_usgs, 'o', markersize=4, color='gray')
+    #usgs (binned - mean)
+    hl_usgs_mean = ax.semilogx(score_emp_usgs_vs30bins, score_emp_usgs_mmean, 's', color='black', markersize=10, label='Mean')
+    #usgs (binned - 16/84prc)
+    hl_usgs_prc  = ax.errorbar(score_emp_usgs_vs30bins, score_emp_usgs_mmean, 
+                               yerr=np.abs(np.vstack((score_emp_usgs_m16prc,score_emp_usgs_m84prc)) - score_emp_usgs_mmean),
+                               capsize=10, fmt='none', ecolor=hl_usgs_mean[0].get_color(), linewidth=2,
+                               label=r'$16-84^{th}$ Percentile')
+    #edit properties
+    ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
+    ax.set_ylabel(r'Score',             fontsize=32)
+    ax.legend(loc='lower right',        fontsize=30)
+    ax.grid(which='both')
+    ax.tick_params(axis='x', labelsize=30)
+    ax.tick_params(axis='y', labelsize=30)
+    ax.set_xlim([90, 2500])
+    ax.set_ylim([-10, 10])
+    fig.tight_layout()
+    #save figure
+    fig.savefig( dir_fig + fname_fig + '.png' )
+    
+    #create figure score vs Vs30 - mean / stationary model
+    fig, ax = plt.subplots(figsize=(10,8))
+    fname_fig = '%s_%s_vs30_%s'%(score_type, 'average', 'stat') 
+    #stationary model
+    hl_stat = ax.semilogx(vs30_array, score_emp_stat, '^', markersize=4, color='gray')
+    #stationary model (binned - mean)
+    hl_stat_bin_mean = ax.semilogx(score_emp_stat_vs30bins, score_emp_stat_mmean, 's', color='gray', markersize=10, label='Mean')
+    #stationary model (binned - 16/84prc)
+    hl_stat_bin_prc  = ax.errorbar(score_emp_stat_vs30bins, score_emp_stat_mmean, 
+                                   yerr=np.abs(np.vstack((score_emp_stat_m16prc,score_emp_stat_m84prc)) - score_emp_stat_mmean),
+                                   capsize=10, fmt='none', ecolor='black', linewidth=2,
+                                   label=r'$16-84^{th}$ Percentile')
+    #edit properties
+    ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
+    ax.set_ylabel(r'Score',             fontsize=32)
+    ax.legend(loc='lower right',        fontsize=30)
+    ax.grid(which='both')
+    ax.tick_params(axis='x', labelsize=30)
+    ax.tick_params(axis='y', labelsize=30)
+    ax.set_xlim([90, 2500])
+    ax.set_ylim([-10, 10])
+    fig.tight_layout()
+    #save figure
+    fig.savefig( dir_fig + fname_fig + '.png' )
+
+    #create figure score vs Vs30 - mean / spatially varying model
+    fig, ax = plt.subplots(figsize=(10,8))
+    fname_fig = '%s_%s_vs30_%s'%(score_type, 'average', 'svar') 
+    #spatially varying model
+    hl_svar = ax.semilogx(vs30_array, score_emp_svar, 'd', markersize=4, color='gray')
+    #spatially varying model (binned mean)
+    hl_svar_bin_mean = ax.semilogx(score_emp_svar_vs30bins, score_emp_svar_mmean, 's', color='black', markersize=10, label='Mean')
+    #spatially varying model (binned 16/84prc)
+    hl_svar_bin_prc  = ax.errorbar(score_emp_svar_vs30bins, score_emp_svar_mmean, 
+                               yerr=np.abs(np.vstack((score_emp_svar_m16prc,score_emp_svar_m84prc)) - score_emp_svar_mmean),
+                               capsize=10, fmt='none', ecolor='black', linewidth=2,
+                               label=r'$16-84^{th}$ Percentile')
+    #edit properties
+    ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
+    ax.set_ylabel(r'Score',             fontsize=32)
+    ax.legend(loc='lower right',        fontsize=30)
+    ax.grid(which='both')
+    ax.tick_params(axis='x', labelsize=30)
+    ax.tick_params(axis='y', labelsize=30)
+    ax.set_xlim([90, 2500])
+    ax.set_ylim([-10, 10])
+    fig.tight_layout()
+    #save figure
+    fig.savefig( dir_fig + fname_fig + '.png' )
+
+    #create figure score vs Vs30 - spatial variability / spatially varying model
+    fig, ax = plt.subplots(figsize=(10,8))
+    fname_fig = '%s_%s_vs30_srlz_%s'%(score_type, 'average', 'svar') 
+    #stationary model (mean)
+    hl_svar_mu = ax.semilogx(vs30_array, score_emp_svar_srlz_mu, 'd', markersize=4, color='gray')
+    #spatially varying (std)
+    hl_svar_prc = ax.errorbar(vs30_array, y=score_emp_svar_srlz_mu, 
+                              yerr=np.abs(score_emp_svar_srlz_prc - score_emp_svar_srlz_mu),
+                              capsize=4, fmt='none', ecolor=hl_svar_mu[0].get_color(), linewidth=0.5)
+    #stationary model (binned - mean)
+    hl_svar_bin_mean = ax.semilogx(score_emp_svar_srlz_vs30bins, score_emp_svar_srlz_mmean, 
+                                   's', color='black', markersize=10, label='Mean')
+    #stationary model (binned - 16/84prc)
+    hl_svar_bin_prc  = ax.errorbar(score_emp_svar_srlz_vs30bins, score_emp_svar_srlz_mmean, 
+                                   yerr=np.abs(np.vstack((score_emp_svar_srlz_m16prc,score_emp_svar_srlz_m84prc)) - score_emp_svar_srlz_mmean),
+                                   capsize=10, fmt='none', ecolor=hl_svar_bin_mean[0].get_color(), linewidth=2,
+                                   label=r'$16-84^{th}$ Percentile')
+    #edit properties
+    ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
+    ax.set_ylabel(r'Score',             fontsize=32)
+    ax.legend(loc='lower right',        fontsize=30)
+    ax.tick_params(axis='x', labelsize=30)
+    ax.tick_params(axis='y', labelsize=30)
+    ax.grid(which='both')
+    ax.set_xlim([90, 2500])
+    ax.set_ylim([-10, 10])
+    fig.tight_layout()
+    #save figure
+    fig.savefig( dir_fig + fname_fig + '.png' )
+
+    if ver > 1:
+        #create figure score vs Vs30 - depth variability / stationary model
+        fig, ax = plt.subplots(figsize=(10,8))
+        fname_fig = '%s_%s_vs30_drlz_%s'%(score_type, 'average', 'stat') 
+        #stationary model (mean)
+        hl_stat_mu = ax.semilogx(vs30_array, score_emp_stat_drlz_mu, '^', markersize=4, color='gray')
+        #spatially varying (std)
+        hl_stat_prc = ax.errorbar(vs30_array, y=score_emp_stat_drlz_mu, 
+                                  yerr=np.abs(score_emp_stat_drlz_prc - score_emp_stat_drlz_mu),
+                                  capsize=4, fmt='none', ecolor=hl_stat_mu[0].get_color(), linewidth=0.5)
+        #stationary model (binned - mean)
+        hl_stat_bin_mean = ax.semilogx(score_emp_stat_drlz_vs30bins, score_emp_stat_drlz_mmean, 
+                                       's', color='black', markersize=10, label='Mean')
+        #stationary model (binned - 16/84prc)
+        hl_stat_bin_prc  = ax.errorbar(score_emp_stat_drlz_vs30bins, score_emp_stat_drlz_mmean, 
+                                       yerr=np.abs(np.vstack((score_emp_stat_drlz_m16prc,score_emp_stat_drlz_m84prc)) - score_emp_stat_drlz_mmean),
+                                       capsize=10, fmt='none', ecolor=hl_stat_bin_mean[0].get_color(), linewidth=2,
+                                       label=r'$16-84^{th}$ Percentile')
+        #edit properties
+        ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
+        ax.set_ylabel(r'Score',             fontsize=32)
+        ax.legend(loc='lower right',        fontsize=30)
+        ax.tick_params(axis='x', labelsize=30)
+        ax.tick_params(axis='y', labelsize=30)
+        ax.grid(which='both')
+        ax.set_xlim([90, 2500])
+        ax.set_ylim([-10, 10])
+        fig.tight_layout()
+        #save figure
+        fig.savefig( dir_fig + fname_fig + '.png' )
+        
+        #create figure score vs Vs30 - spatial & depth variability / spatially varying model
+        fig, ax = plt.subplots(figsize=(10,8))
+        fname_fig = '%s_%s_vs30_srlz_drlz_%s'%(score_type, 'average', 'svar') 
+        #stationary model (mean)
+        hl_svar_mu = ax.semilogx(vs30_array, score_emp_svar_srlz_drlz_mu, 'd', markersize=4, color='gray')
+        #spatially varying (std)
+        hl_svar_prc = ax.errorbar(vs30_array, y=score_emp_svar_srlz_drlz_mu, 
+                                  yerr=np.abs(score_emp_svar_srlz_drlz_prc - score_emp_svar_srlz_drlz_mu),
+                                  capsize=8, fmt='none', ecolor=hl_svar_mu[0].get_color(), linewidth=0.5)
+        #stationary model (binned - mean)
+        hl_svar_bin_mean = ax.semilogx(score_emp_svar_srlz_drlz_vs30bins, score_emp_svar_srlz_drlz_mmean, 
+                                       's', color='black', markersize=10, label='Mean')
+        #stationary model (binned - 16/84prc)
+        hl_svar_bin_prc  = ax.errorbar(score_emp_svar_srlz_drlz_vs30bins, score_emp_svar_srlz_drlz_mmean, 
+                                       yerr=np.abs(np.vstack((score_emp_svar_srlz_drlz_m16prc,score_emp_svar_srlz_drlz_m84prc)) - score_emp_svar_srlz_drlz_mmean),
+                                       capsize=8, fmt='none', ecolor=hl_svar_bin_mean[0].get_color(), linewidth=2,
+                                       label=r'$16-84^{th}$ Percentile')
         #edit properties
         ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
         ax.set_ylabel(r'Score',             fontsize=32)
@@ -486,14 +858,14 @@ for j, f_b in enumerate(fn_score_binned):
     fig, ax = plt.subplots(figsize=(10,8))
     fname_fig = '%s_%s_rmse'%(score_type, f_b) 
     #usgs
-    hl_usgs = ax.semilogx(rmse_usgs, score_emp_usgs, 'o', color='black', label='USGS')
+    hl_usgs = ax.semilogx(rmse_usgs, score_emp_usgs, 'o', color='black', label='USGS SFBA Model')
     #stationary model
-    hl_stat = ax.semilogx(rmse_stat, score_emp_stat, 's', color=cmap(1), label='Stationary Model')
+    hl_stat = ax.semilogx(rmse_stat, score_emp_stat, '^', color=cmap(1), label='Stationary Model')
     #spatially varying (mean)
     hl_svar = ax.semilogx(rmse_svar, score_emp_svar, 'd', color=cmap(0), label='Spatially Varying Model')
     #edit properties
-    ax.set_xlabel(r'RMSE',       fontsize=32)
-    ax.set_ylabel(r'Score',      fontsize=32)
+    ax.set_xlabel(r'RMSE',                fontsize=32)
+    ax.set_ylabel(r'Score',               fontsize=32)
     if j==0: ax.legend(loc='lower right', fontsize=30)
     ax.tick_params(axis='x', labelsize=30)
     ax.tick_params(axis='y', labelsize=30)
@@ -516,9 +888,9 @@ if not df_score_total is None:
     fig, ax = plt.subplots(figsize=(10,8))
     fname_fig = '%s_%s_rmse'%(score_type, 'average') 
     #usgs
-    hl_usgs = ax.semilogx(rmse_usgs, score_emp_usgs, 'o', color='black', label='USGS')
+    hl_usgs = ax.semilogx(rmse_usgs, score_emp_usgs, 'o', color='black', label='USGS SFBA Model')
     #stationary model
-    hl_stat = ax.semilogx(rmse_stat, score_emp_stat, 's', color=cmap(1), label='Stationary Model')
+    hl_stat = ax.semilogx(rmse_stat, score_emp_stat, '^', color=cmap(1), label='Stationary Model')
     #spatially varying
     hl_svar = ax.semilogx(rmse_svar, score_emp_svar, 'd', color=cmap(0), label='Spatially Varying Model')
     #edit properties
@@ -554,9 +926,9 @@ for j, f_b in enumerate(fn_score_binned):
     fig, ax = plt.subplots(figsize=(10,8))
     fname_fig = '%s_%s_fp'%(score_type, f_b) 
     #usgs
-    hl_usgs = ax.semilogx(fp_array, score_emp_usgs, 'o', color='black', label='USGS')
+    hl_usgs = ax.semilogx(fp_array, score_emp_usgs, 'o', color='black', label='USGS SFBA Model')
     #stationary model
-    hl_stat = ax.semilogx(fp_array, score_emp_stat, 's', color=cmap(1), label='Stationary Model')
+    hl_stat = ax.semilogx(fp_array, score_emp_stat, '^', color=cmap(1), label='Stationary Model')
     #spatially varying (mean)
     hl_svar = ax.semilogx(fp_array, score_emp_svar, 'd', color=cmap(0), label='Spatially Varying Model')
     #edit properties
@@ -584,9 +956,9 @@ if not df_score_total is None:
     fig, ax = plt.subplots(figsize=(10,8))
     fname_fig = '%s_%s_fp'%(score_type, 'average') 
     #usgs
-    hl_usgs = ax.semilogx(fp_array, score_emp_usgs, 'o', color='black', label='USGS')
+    hl_usgs = ax.semilogx(fp_array, score_emp_usgs, 'o', color='black', label='USGS SFBA Model')
     #stationary model
-    hl_stat = ax.semilogx(fp_array, score_emp_stat, 's', color=cmap(1), label='Stationary Model')
+    hl_stat = ax.semilogx(fp_array, score_emp_stat, '^', color=cmap(1), label='Stationary Model')
     #spatially varying
     hl_svar = ax.semilogx(fp_array, score_emp_svar, 'd', color=cmap(0), label='Spatially Varying Model')
     #edit properties

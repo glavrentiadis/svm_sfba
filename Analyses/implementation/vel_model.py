@@ -15,10 +15,27 @@ import pandas as pd
 import pyproj
 
 class VelModel:
-    def __init__(self, fname_hparam=None, fname_dBr=None, z_star=2.5):
+    def __init__(self, fname_hparam=None, fname_dcparam=None, fname_dBr=None, z_star=2.5):
+        '''
+        
+
+        Parameters
+        ----------
+        fname_hparam : str, optional
+            File name for velocity model hyper-parameters. The default is None.
+        fname_dcparam : str, optional
+            File name for along-depth correlation parameters. The default is None.
+        fname_dBr : str, optional
+            File name spatial adjustment to velocity slope. The default is None.
+        z_star : double, optional
+            Depth for constant velocity near the surface. The default is 2.5.
+        '''
         
         #intialize scaling terms
         self.z_star = z_star
+        #default inputs
+        self.prof_dBr    = None
+        self.prof_latlon = None
         
         #read model hyper-parameters
         if not fname_hparam is None:
@@ -34,6 +51,11 @@ class VelModel:
             #standard deviation
             self.sigma      = df_hparam.loc['prc0.50','sigma_vel']
     
+        #read along-depth correlation
+        if not fname_dcparam is None:
+            #read random term
+            df_dcparam = pd.read_csv(fname_dcparam, index_col=0)
+
         #read random term
         if not fname_dBr is None:
             #read random term
@@ -41,7 +63,6 @@ class VelModel:
             #median scaling
             self.prof_dBr    = df_dBr.loc[:,'param_dBr_med']
             self.prof_latlon = df_dBr.loc[:,['Lat','Lon']]
-
     
     # Scaling functions
     # ---   ---   ---   ---   ---
