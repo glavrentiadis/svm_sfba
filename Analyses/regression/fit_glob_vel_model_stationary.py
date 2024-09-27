@@ -544,7 +544,7 @@ param_vs0_scl = np.array([calcvs0(vs30, k, n, z_star) for (vs30, n, k) in zip(vs
 #scaling k
 fname_fig = (fname_out_main + '_scaling_param_k').replace(' ','_')
 fig, ax = plt.subplots(figsize = (10,10))
-hl = ax.loglog(vs30_array, param_k_scl, '-', linewidth=4, zorder=10, color='k', label='Stationay Model')
+hl = ax.loglog(vs30_array, param_k_scl, '-', linewidth=4, zorder=10, color='k', label='Stationary Model')
 #edit properties
 ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
 ax.set_ylabel(r'$k$',               fontsize=32)
@@ -560,7 +560,7 @@ fig.savefig(dir_fig+fname_fig+'.png', bbox_inches='tight')
 #scaling n
 fname_fig = (fname_out_main + '_scaling_param_n').replace(' ','_')
 fig, ax = plt.subplots(figsize = (10,10))
-hl = ax.semilogx(vs30_array, param_n_scl, '-', linewidth=4, zorder=10, color='k', label='Stationay Model')
+hl = ax.semilogx(vs30_array, param_n_scl, '-', linewidth=4, zorder=10, color='k', label='Stationary Model')
 #edit properties
 ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
 ax.set_ylabel(r'$n$',               fontsize=32)
@@ -577,7 +577,7 @@ fig.savefig( dir_fig + fname_fig + '.png' )
 #scaling Vs0
 fname_fig = (fname_out_main + '_scaling_param_vs0').replace(' ','_')
 fig, ax = plt.subplots(figsize = (10,10))
-hl = ax.loglog(vs30_array, param_vs0_scl, '-', linewidth=4, zorder=10, color='k', label='Stationay Model')
+hl = ax.loglog(vs30_array, param_vs0_scl, '-', linewidth=4, zorder=10, color='k', label='Stationary Model')
 hl = ax.loglog([100,2000],[100,2000], linestyle=':', linewidth=3, color='black', label='1:1 Line')
 #edit properties
 ax.set_xlabel(r'$V_{S30}$ (m/sec)', fontsize=32)
