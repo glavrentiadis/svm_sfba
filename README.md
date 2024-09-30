@@ -5,7 +5,7 @@
 This repository contains the regression scripts, model implementation, and data for the Sedimentary Velocity Model for the San Francisco Bay Area described in: 
 Lavrentiadis, G., Seylabi, E., Xia, F., Tehrani, H., Asimaki, D., & McCallen, D. (Under Review) Enhancing Near-Surface Velocity Characterization in the San Francisco Bay Area: A Stationary and Spatially Varying Approach. *Earthquake Spectra*
 
-An open-access version of the manuscript can be found in arXiv.
+An open-access version of the manuscript can be found in [arXiv](https://arxiv.org/abs/2409.18856).
 
 This paper supersedes the USGS report: [Tehrani, H., Lavrentiadis, G., Seylabi, E., McCallen, D., & Asimaki, D. (2023). Final Technical Report (2021-2022) Towards a Three-Dimensional Geotechnical Layer Model for Northern California Collaborative Research with the University of Nevada Reno and California Institute of Technology.](https://earthquake.usgs.gov/cfusion/external_grants/reports/G21AP10448.pdf)
 
