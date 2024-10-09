@@ -236,7 +236,7 @@ for f_j in fname_json: os.remove(dir_out + f_j)
 
 #%% Postprocessing
 ### ======================================
-#initiaize flatfile for sumamry of non-erg coefficinets and residuals
+#initiaize flatfile for sumamry of profile coefficinets and residuals
 df_velinfo  = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Z_max','Lat','Lon','X','Y','Depth_MPt','Thk', 'Vs', 'flag_Z1']]
 df_profinfo = df_velprofs[['DSID','DSName','VelID','VelName','Vs30','Z_max','Lat','Lon','X','Y']].iloc[vel_idx,:].reset_index(drop=True)
 

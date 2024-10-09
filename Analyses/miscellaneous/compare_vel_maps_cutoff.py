@@ -56,38 +56,51 @@ n_discrt = 500
 
 #depth
 # z = np.array([0.,])
-# z = np.array([10.,])
+z = np.array([10.,])
 # z = np.array([30.,])
 # z = np.array([50.,])
 # z = np.array([100.,])
-z = np.array([200.,])
+# z = np.array([200.,])
 
 #color bar limits
 if z[0] == 0:
-    lims_vs  = [50, 1000]
-    lims_unc = [0., .10]
+    lims_vs       = [50, 1000]
+    lims_unc      = [0., .10]
+    lims_vs_ratio = [0.1,10.0]
+    lims_vs_diff  = [-500.,500.0]
 elif z[0] == 10:
-    lims_vs  = [50, 1200]
-    lims_unc = [0., .10]   
+    lims_vs       = [50, 1200]
+    lims_unc      = [0., .10]
+    lims_vs_ratio = [0.1,10.0]
+    lims_vs_diff  = [-500.,500.0]
 elif z[0] == 30:
-    lims_vs  = [200, 1300]
-    lims_unc = [0., .10]
+    lims_vs       = [200, 1300]
+    lims_unc      = [0., .10]
+    lims_vs_ratio = [0.25, 4.0]
+    lims_vs_diff  = [-250.,250.0]
 elif z[0] == 50:
-    lims_vs  = [250, 1500]
-    lims_unc = [0., .13]
+    lims_vs       = [250, 1500]
+    lims_unc      = [0., .13]
+    lims_vs_ratio = [0.25, 4.0]
+    lims_vs_diff  = [-250.,250.0]
 elif z[0] == 100:
-    lims_vs  = [400, 1600]
-    lims_unc = [0., .15]
+    lims_vs       = [400, 1600]
+    lims_unc      = [0., .15]
+    lims_vs_ratio = [0.25, 4.0]
+    lims_vs_diff  = [-250.,250.0]
 elif z[0] == 200:
-    lims_vs  = [400, 3500]
-    lims_unc = [0., .20]
+    lims_vs       = [400, 3500]
+    lims_unc      = [0., .20]
+    lims_vs_ratio = [0.25, 4.0]
+    lims_vs_diff  = [-250.,250.0]
 
 #filename spatially varying parametes
-fname_model_svar_dBr = '../../Data/regression/temp/model_spatially_varying_old/all_trunc_stan_parameters2.csv'
+# fname_model_svar_dBr = '../../Data/regression/model_spatially_varying_old/all_trunc_stan_parameters2.csv'
+fname_model_svar_dBr = '../../Data/regression/model_spatially_varying/all_trunc_stan_parameters.csv'
 
 #usgs vel model
-# dir_usgs   = '/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Raw_files/vel_model/USGS_SFB_vel_model/'
-dir_usgs   = '/home/glavrent/Downloads/'
+dir_usgs   = '/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Raw_files/vel_model/USGS_SFB_vel_model/'
+dir_usgs   = '/home/glavrent/Downloads/vel_model/USGS_SFB_vel_model/'
 fname_usgs = 'USGS_SFCVM_v21-1_detailed.h5'
 
 #figure directory
@@ -249,7 +262,7 @@ gl.ylabel_style = {'size': 28}
 fig.tight_layout()
 fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
 
-# Spatial varying model
+# Spatial varying model (conditional)
 # ---   ---   ---   ---   ---
 svar_cnd_vs_data2plot = np.hstack([np.fliplr(mesh_array), svar_cnd_vs_mu_array.T, svar_cnd_vs_unc_array.T]) 
 svar_cnd_vs_data2plot = svar_cnd_vs_data2plot[~np.isnan(svar_cnd_vs_data2plot[:,2]),:]
@@ -297,7 +310,7 @@ gl.ylabel_style = {'size': 28}
 fig.tight_layout()
 fig.savefig( dir_fig + fname_fig_main +fname_fig + '.png', bbox_inches='tight')
 
-# Spatial varying model
+# Spatial varying model (unconditional)
 # ---   ---   ---   ---   ---
 svar_ucnd_vs_data2plot = np.hstack([np.fliplr(mesh_array), svar_ucnd_vs_mu_array.T, svar_ucnd_vs_unc_array.T]) 
 svar_ucnd_vs_data2plot = svar_ucnd_vs_data2plot[~np.isnan(svar_ucnd_vs_data2plot[:,2]),:]
@@ -345,66 +358,6 @@ gl.ylabel_style = {'size': 28}
 fig.tight_layout()
 fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
 
-# Spatially Varying Conditional / Stationary Model Diff.
-# ---   ---   ---   ---   ---
-diff_svar_cnd_stat_vs_data2plot = np.hstack([np.fliplr(mesh_array), svar_cnd_vs_mu_array.T / stat_vs_mu_array.T]) 
-diff_svar_cnd_stat_vs_data2plot = diff_svar_cnd_stat_vs_data2plot[~np.isnan(diff_svar_cnd_stat_vs_data2plot[:,2]),:]
-diff_svar_cnd_stat_vs_data2plot = diff_svar_cnd_stat_vs_data2plot[diff_svar_cnd_stat_vs_data2plot[:,2]>0,:]
-
-fname_fig = 'diff_spatially_varying_model_conditional_stationay_z_%.1fm'%z[0]
-fig, ax, cbar, data_crs, gl = pycplt.PlotContourCAMap(diff_svar_cnd_stat_vs_data2plot[:,[0,1,2]], 
-                                                      cmap='seismic',
-                                                      cmin=np.log(1/2.0), cmax=np.log(2.0), 
-                                                      log_cbar=True, frmt_clb='%.2f')
-ax.plot(df_model_svar_param.Lon.values, df_model_svar_param.Lat.values,'ok',linewidth=3, zorder=5, markersize=1)
-ax.plot(vel_model_edges[:,0],vel_model_edges[:,1],'-k',linewidth=3, zorder=5)
-#edit figure properties
-cbar.ax.tick_params(labelsize=28)
-cbar.set_label(r'$V_{S,svar}/V_{S,stat}[z=%.1fm]$'%z, size=30)
-ax.set_xlim(pl_win[1])
-ax.set_ylim(pl_win[0])
-#grid lines
-gl = ax.gridlines(crs=data_crs, draw_labels=True,
-                  linewidth=1, color='gray', alpha=0.5, linestyle='--')
-gl.xlabels_top = False
-gl.ylabels_right = False
-gl.xlabel_style = {'size': 28}
-gl.ylabel_style = {'size': 28}
-#save figure
-fig.tight_layout()
-fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
-
-# Conditional/Unconditional Model Diff.
-# ---   ---   ---   ---   ---
-diff_svar_cnd_ucnd_vs_data2plot = np.hstack([np.fliplr(mesh_array),
-                                             svar_cnd_vs_mu_array.T  / svar_ucnd_vs_mu_array.T,
-                                             svar_cnd_vs_unc_array.T / svar_cnd_vs_mu_array.T]) 
-diff_svar_cnd_ucnd_vs_data2plot = diff_svar_cnd_ucnd_vs_data2plot[~np.isnan(diff_svar_cnd_ucnd_vs_data2plot[:,2]),:]
-diff_svar_cnd_ucnd_vs_data2plot = diff_svar_cnd_ucnd_vs_data2plot[diff_svar_cnd_ucnd_vs_data2plot[:,2]>0,:]
-
-fname_fig = 'diff_spatially_varying_model_conditional_unconditional_z_%.1fm'%z[0]
-fig, ax, cbar, data_crs, gl = pycplt.PlotContourCAMap(diff_svar_cnd_ucnd_vs_data2plot[:,[0,1,2]], 
-                                                      cmap='seismic',
-                                                      cmin=np.log(1/2.0), cmax=np.log(2.0), 
-                                                      log_cbar=True, frmt_clb='%.2f')
-ax.plot(df_model_svar_param.Lon.values, df_model_svar_param.Lat.values,'ok',linewidth=3, zorder=5, markersize=1)
-ax.plot(vel_model_edges[:,0],vel_model_edges[:,1],'-k',linewidth=3, zorder=5)
-#edit figure properties
-cbar.ax.tick_params(labelsize=28)
-cbar.set_label(r'$V_{S,cond}/V_{S,ucond}[z=%.1fm]$'%z, size=30)
-ax.set_xlim(pl_win[1])
-ax.set_ylim(pl_win[0])
-#grid lines
-gl = ax.gridlines(crs=data_crs, draw_labels=True,
-                  linewidth=1, color='gray', alpha=0.5, linestyle='--')
-gl.xlabels_top = False
-gl.ylabels_right = False
-gl.xlabel_style = {'size': 28}
-gl.ylabel_style = {'size': 28}
-#save figure
-fig.tight_layout()
-fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
-
 # USGS Model
 # ---   ---   ---   ---   ---
 usgs_vs_data2plot = np.hstack([np.fliplr(mesh_array), usgs_vs_array.T]) 
@@ -432,4 +385,260 @@ gl.ylabel_style = {'size': 28}
 #save figure
 fig.tight_layout()
 fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
+
+
+# Spatially Varying Conditional / Stationary Model ratio
+# ---   ---   ---   ---   ---
+diff_svar_cnd_stat_vs_data2plot = np.hstack([np.fliplr(mesh_array), svar_cnd_vs_mu_array.T / stat_vs_mu_array.T]) 
+diff_svar_cnd_stat_vs_data2plot = diff_svar_cnd_stat_vs_data2plot[~np.isnan(diff_svar_cnd_stat_vs_data2plot[:,2]),:]
+diff_svar_cnd_stat_vs_data2plot = diff_svar_cnd_stat_vs_data2plot[diff_svar_cnd_stat_vs_data2plot[:,2]>0,:]
+
+fname_fig = 'ratio_spatially_varying_model_conditional_stationay_z_%.1fm'%z[0]
+fig, ax, cbar, data_crs, gl = pycplt.PlotContourCAMap(diff_svar_cnd_stat_vs_data2plot[:,[0,1,2]], 
+                                                      cmap='seismic',
+                                                      cmin=np.log(1/3.0), cmax=np.log(3.0), 
+                                                      log_cbar=True, frmt_clb='%.2f')
+ax.plot(df_model_svar_param.Lon.values, df_model_svar_param.Lat.values,'ok',linewidth=3, zorder=5, markersize=1)
+ax.plot(vel_model_edges[:,0],vel_model_edges[:,1],'-k',linewidth=3, zorder=5)
+#edit figure properties
+cbar.ax.tick_params(labelsize=28)
+cbar.set_label(r'$V_{S,svar-cond}/V_{S,stat}~[z=%.1fm]$'%z, size=30)
+ax.set_xlim(pl_win[1])
+ax.set_ylim(pl_win[0])
+#grid lines
+gl = ax.gridlines(crs=data_crs, draw_labels=True,
+                  linewidth=1, color='gray', alpha=0.5, linestyle='--')
+gl.xlabels_top = False
+gl.ylabels_right = False
+gl.xlabel_style = {'size': 28}
+gl.ylabel_style = {'size': 28}
+#save figure
+fig.tight_layout()
+fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
+
+# Conditional/Unconditional Model ratio
+# ---   ---   ---   ---   ---
+diff_svar_cnd_ucnd_vs_data2plot = np.hstack([np.fliplr(mesh_array),
+                                             svar_cnd_vs_mu_array.T  / svar_ucnd_vs_mu_array.T,
+                                             svar_cnd_vs_unc_array.T / svar_cnd_vs_mu_array.T]) 
+diff_svar_cnd_ucnd_vs_data2plot = diff_svar_cnd_ucnd_vs_data2plot[~np.isnan(diff_svar_cnd_ucnd_vs_data2plot[:,2]),:]
+diff_svar_cnd_ucnd_vs_data2plot = diff_svar_cnd_ucnd_vs_data2plot[diff_svar_cnd_ucnd_vs_data2plot[:,2]>0,:]
+
+fname_fig = 'ratio_spatially_varying_model_conditional_unconditional_z_%.1fm'%z[0]
+fig, ax, cbar, data_crs, gl = pycplt.PlotContourCAMap(diff_svar_cnd_ucnd_vs_data2plot[:,[0,1,2]], 
+                                                      cmap='seismic',
+                                                      cmin=np.log(1/3.0), cmax=np.log(3.0), 
+                                                      log_cbar=True, frmt_clb='%.2f')
+ax.plot(df_model_svar_param.Lon.values, df_model_svar_param.Lat.values,'ok',linewidth=3, zorder=5, markersize=1)
+ax.plot(vel_model_edges[:,0],vel_model_edges[:,1],'-k',linewidth=3, zorder=5)
+#edit figure properties
+cbar.ax.tick_params(labelsize=28)
+cbar.set_label(r'$V_{S,svar-cond}/V_{S,svar-ucond}~[z=%.1fm]$'%z, size=30)
+ax.set_xlim(pl_win[1])
+ax.set_ylim(pl_win[0])
+#grid lines
+gl = ax.gridlines(crs=data_crs, draw_labels=True,
+                  linewidth=1, color='gray', alpha=0.5, linestyle='--')
+gl.xlabels_top = False
+gl.ylabels_right = False
+gl.xlabel_style = {'size': 28}
+gl.ylabel_style = {'size': 28}
+#save figure
+fig.tight_layout()
+fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
+
+
+# Stationary Model / USGS ratio
+# ---   ---   ---   ---   ---
+diff_stat_usgs_vs_data2plot = np.hstack([np.fliplr(mesh_array), stat_vs_mu_array.T / usgs_vs_array.T]) 
+diff_stat_usgs_vs_data2plot = diff_stat_usgs_vs_data2plot[~np.isnan(diff_stat_usgs_vs_data2plot[:,2]),:]
+diff_stat_usgs_vs_data2plot = diff_stat_usgs_vs_data2plot[diff_stat_usgs_vs_data2plot[:,2]>0,:]
+#apply limits
+diff_stat_usgs_vs_data2plot[:,2] = np.maximum(diff_stat_usgs_vs_data2plot[:,2], lims_vs_ratio[0])
+diff_stat_usgs_vs_data2plot[:,2] = np.minimum(diff_stat_usgs_vs_data2plot[:,2], lims_vs_ratio[1])
+
+fname_fig = 'ratio_stationay_usgs_z_%.1fm'%z[0]
+fig, ax, cbar, data_crs, gl = pycplt.PlotContourCAMap(diff_stat_usgs_vs_data2plot[:,[0,1,2]], 
+                                                      cmap='seismic',
+                                                      cmin=np.log(lims_vs_ratio[0]), cmax=np.log(lims_vs_ratio[1]), 
+                                                      log_cbar=True, frmt_clb='%.2f')
+# ax.plot(df_model_svar_param.Lon.values, df_model_svar_param.Lat.values,'ok',linewidth=3, zorder=5, markersize=1)
+ax.plot(vel_model_edges[:,0],vel_model_edges[:,1],'-k',linewidth=3, zorder=5)
+#edit figure properties
+cbar.ax.tick_params(labelsize=28)
+cbar.set_label(r'$V_{S,stat}/V_{S,USGS}~[z=%.1fm]$'%z, size=30)
+ax.set_xlim(pl_win[1])
+ax.set_ylim(pl_win[0])
+#grid lines
+gl = ax.gridlines(crs=data_crs, draw_labels=True,
+                  linewidth=1, color='gray', alpha=0.5, linestyle='--')
+gl.xlabels_top = False
+gl.ylabels_right = False
+gl.xlabel_style = {'size': 28}
+gl.ylabel_style = {'size': 28}
+#save figure
+fig.tight_layout()
+fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
+
+# Spatially Varying Conditional / USGS ratio
+# ---   ---   ---   ---   ---
+diff_svar_cnd_usgs_vs_data2plot = np.hstack([np.fliplr(mesh_array), svar_cnd_vs_mu_array.T / usgs_vs_array.T]) 
+diff_svar_cnd_usgs_vs_data2plot = diff_svar_cnd_usgs_vs_data2plot[~np.isnan(diff_svar_cnd_usgs_vs_data2plot[:,2]),:]
+diff_svar_cnd_usgs_vs_data2plot = diff_svar_cnd_usgs_vs_data2plot[diff_svar_cnd_usgs_vs_data2plot[:,2]>0,:]
+#apply limits
+diff_svar_cnd_usgs_vs_data2plot[:,2] = np.maximum(diff_svar_cnd_usgs_vs_data2plot[:,2], lims_vs_ratio[0])
+diff_svar_cnd_usgs_vs_data2plot[:,2] = np.minimum(diff_svar_cnd_usgs_vs_data2plot[:,2], lims_vs_ratio[1])
+
+fname_fig = 'ratio_spatially_varying_model_conditional_usgs_z_%.1fm'%z[0]
+fig, ax, cbar, data_crs, gl = pycplt.PlotContourCAMap(diff_svar_cnd_usgs_vs_data2plot[:,[0,1,2]], 
+                                                      cmap='seismic',
+                                                      cmin=np.log(lims_vs_ratio[0]), cmax=np.log(lims_vs_ratio[1]), 
+                                                      log_cbar=True, frmt_clb='%.2f')
+ax.plot(df_model_svar_param.Lon.values, df_model_svar_param.Lat.values,'ok',linewidth=3, zorder=5, markersize=1)
+ax.plot(vel_model_edges[:,0],vel_model_edges[:,1],'-k',linewidth=3, zorder=5)
+#edit figure properties
+cbar.ax.tick_params(labelsize=28)
+cbar.set_label(r'$V_{S,svar}/V_{S,USGS}~[z=%.1fm]$'%z, size=30)
+ax.set_xlim(pl_win[1])
+ax.set_ylim(pl_win[0])
+#grid lines
+gl = ax.gridlines(crs=data_crs, draw_labels=True,
+                  linewidth=1, color='gray', alpha=0.5, linestyle='--')
+gl.xlabels_top = False
+gl.ylabels_right = False
+gl.xlabel_style = {'size': 28}
+gl.ylabel_style = {'size': 28}
+#save figure
+fig.tight_layout()
+fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
+
+# Spatially Varying Conditional / USGS ratio
+# ---   ---   ---   ---   ---
+diff_svar_ucnd_usgs_vs_data2plot = np.hstack([np.fliplr(mesh_array), svar_ucnd_vs_mu_array.T / usgs_vs_array.T]) 
+diff_svar_ucnd_usgs_vs_data2plot = diff_svar_ucnd_usgs_vs_data2plot[~np.isnan(diff_svar_ucnd_usgs_vs_data2plot[:,2]),:]
+diff_svar_ucnd_usgs_vs_data2plot = diff_svar_ucnd_usgs_vs_data2plot[diff_svar_ucnd_usgs_vs_data2plot[:,2]>0,:]
+#apply limits
+diff_svar_ucnd_usgs_vs_data2plot[:,2] = np.maximum(diff_svar_ucnd_usgs_vs_data2plot[:,2], lims_vs_ratio[0])
+diff_svar_ucnd_usgs_vs_data2plot[:,2] = np.minimum(diff_svar_ucnd_usgs_vs_data2plot[:,2], lims_vs_ratio[1])
+
+fname_fig = 'ratio_spatially_varying_model_unconditional_usgs_z_%.1fm'%z[0]
+fig, ax, cbar, data_crs, gl = pycplt.PlotContourCAMap(diff_svar_ucnd_usgs_vs_data2plot[:,[0,1,2]], 
+                                                      cmap='seismic',
+                                                      cmin=np.log(lims_vs_ratio[0]), cmax=np.log(lims_vs_ratio[1]), 
+                                                      log_cbar=True, frmt_clb='%.2f')
+# ax.plot(df_model_svar_param.Lon.values, df_model_svar_param.Lat.values,'ok',linewidth=3, zorder=5, markersize=1)
+ax.plot(vel_model_edges[:,0],vel_model_edges[:,1],'-k',linewidth=3, zorder=5)
+#edit figure properties
+cbar.ax.tick_params(labelsize=28)
+cbar.set_label(r'$V_{S,svar-ucond}/V_{S,USGS}~[z=%.1fm]$'%z, size=30)
+ax.set_xlim(pl_win[1])
+ax.set_ylim(pl_win[0])
+#grid lines
+gl = ax.gridlines(crs=data_crs, draw_labels=True,
+                  linewidth=1, color='gray', alpha=0.5, linestyle='--')
+gl.xlabels_top = False
+gl.ylabels_right = False
+gl.xlabel_style = {'size': 28}
+gl.ylabel_style = {'size': 28}
+#save figure
+fig.tight_layout()
+fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
+
+
+# Stationary Model / USGS percent difference
+# ---   ---   ---   ---   ---
+diff_stat_usgs_vs_data2plot = np.hstack([np.fliplr(mesh_array), 100*((stat_vs_mu_array-usgs_vs_array)/usgs_vs_array).T]) 
+diff_stat_usgs_vs_data2plot = diff_stat_usgs_vs_data2plot[usgs_vs_array.flatten()>0,:]
+diff_stat_usgs_vs_data2plot = diff_stat_usgs_vs_data2plot[~np.isnan(diff_stat_usgs_vs_data2plot[:,2]),:]
+#apply limits
+diff_stat_usgs_vs_data2plot[:,2] = np.maximum(diff_stat_usgs_vs_data2plot[:,2], lims_vs_diff[0])
+diff_stat_usgs_vs_data2plot[:,2] = np.minimum(diff_stat_usgs_vs_data2plot[:,2], lims_vs_diff[1])
+
+fname_fig = 'diff_stationay_usgs_z_%.1fm'%z[0]
+fig, ax, cbar, data_crs, gl = pycplt.PlotContourCAMap(diff_stat_usgs_vs_data2plot[:,[0,1,2]], 
+                                                      cmap='seismic',
+                                                      cmin=lims_vs_diff[0], cmax=lims_vs_diff[1], 
+                                                      log_cbar=False, frmt_clb='%.0f')
+# ax.plot(df_model_svar_param.Lon.values, df_model_svar_param.Lat.values,'ok',linewidth=3, zorder=5, markersize=1)
+ax.plot(vel_model_edges[:,0],vel_model_edges[:,1],'-k',linewidth=3, zorder=5)
+#edit figure properties
+cbar.ax.tick_params(labelsize=28)
+cbar.set_label(r'$V_S$ difference $[z=%.1fm]~(\%%)$'%z, size=30)
+ax.set_xlim(pl_win[1])
+ax.set_ylim(pl_win[0])
+#grid lines
+gl = ax.gridlines(crs=data_crs, draw_labels=True,
+                  linewidth=1, color='gray', alpha=0.5, linestyle='--')
+gl.xlabels_top = False
+gl.ylabels_right = False
+gl.xlabel_style = {'size': 28}
+gl.ylabel_style = {'size': 28}
+#save figure
+fig.tight_layout()
+fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
+
+# Spatially Varying Conditional / USGS percent difference
+# ---   ---   ---   ---   ---
+diff_svar_cnd_usgs_vs_data2plot = np.hstack([np.fliplr(mesh_array), 100*((svar_cnd_vs_mu_array-usgs_vs_array)/usgs_vs_array).T]) 
+diff_svar_cnd_usgs_vs_data2plot = diff_svar_cnd_usgs_vs_data2plot[usgs_vs_array.flatten()>0,:]
+diff_svar_cnd_usgs_vs_data2plot = diff_svar_cnd_usgs_vs_data2plot[~np.isnan(diff_svar_cnd_usgs_vs_data2plot[:,2]),:]
+#apply limits
+diff_svar_cnd_usgs_vs_data2plot[:,2] = np.maximum(diff_svar_cnd_usgs_vs_data2plot[:,2], lims_vs_diff[0])
+diff_svar_cnd_usgs_vs_data2plot[:,2] = np.minimum(diff_svar_cnd_usgs_vs_data2plot[:,2], lims_vs_diff[1])
+
+fname_fig = 'diff_spatially_varying_model_conditional_usgs_z_%.1fm'%z[0]
+fig, ax, cbar, data_crs, gl = pycplt.PlotContourCAMap(diff_svar_cnd_usgs_vs_data2plot[:,[0,1,2]], 
+                                                      cmap='seismic',
+                                                      cmin=lims_vs_diff[0], cmax=lims_vs_diff[1], 
+                                                      log_cbar=False, frmt_clb='%.0f')
+ax.plot(df_model_svar_param.Lon.values, df_model_svar_param.Lat.values,'ok',linewidth=3, zorder=5, markersize=1)
+ax.plot(vel_model_edges[:,0],vel_model_edges[:,1],'-k',linewidth=3, zorder=5)
+#edit figure properties
+cbar.ax.tick_params(labelsize=28)
+cbar.set_label(r'$V_S$ difference $[z=%.1fm]~(\%%)$'%z, size=30)
+ax.set_xlim(pl_win[1])
+ax.set_ylim(pl_win[0])
+#grid lines
+gl = ax.gridlines(crs=data_crs, draw_labels=True,
+                  linewidth=1, color='gray', alpha=0.5, linestyle='--')
+gl.xlabels_top = False
+gl.ylabels_right = False
+gl.xlabel_style = {'size': 28}
+gl.ylabel_style = {'size': 28}
+#save figure
+fig.tight_layout()
+fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
+
+# Spatially Varying Conditional / USGS percent difference
+# ---   ---   ---   ---   ---
+diff_svar_ucnd_usgs_vs_data2plot = np.hstack([np.fliplr(mesh_array), 100*((svar_ucnd_vs_mu_array-usgs_vs_array)/usgs_vs_array).T])
+diff_svar_ucnd_usgs_vs_data2plot = diff_svar_ucnd_usgs_vs_data2plot[usgs_vs_array.flatten()>0,:]
+diff_svar_ucnd_usgs_vs_data2plot = diff_svar_ucnd_usgs_vs_data2plot[~np.isnan(diff_svar_ucnd_usgs_vs_data2plot[:,2]),:]
+#apply limits
+diff_svar_ucnd_usgs_vs_data2plot[:,2] = np.maximum(diff_svar_ucnd_usgs_vs_data2plot[:,2], lims_vs_diff[0])
+diff_svar_ucnd_usgs_vs_data2plot[:,2] = np.minimum(diff_svar_ucnd_usgs_vs_data2plot[:,2], lims_vs_diff[1])
+
+fname_fig = 'diff_spatially_varying_model_unconditional_usgs_z_%.1fm'%z[0]
+fig, ax, cbar, data_crs, gl = pycplt.PlotContourCAMap(diff_svar_ucnd_usgs_vs_data2plot[:,[0,1,2]], 
+                                                      cmap='seismic',
+                                                      cmin=lims_vs_diff[0], cmax=lims_vs_diff[1], 
+                                                      log_cbar=False, frmt_clb='%.0f')
+# ax.plot(df_model_svar_param.Lon.values, df_model_svar_param.Lat.values,'ok',linewidth=3, zorder=5, markersize=1)
+ax.plot(vel_model_edges[:,0],vel_model_edges[:,1],'-k',linewidth=3, zorder=5)
+#edit figure properties
+cbar.ax.tick_params(labelsize=28)
+cbar.set_label(r'$V_S$ difference $[z=%.1fm]~(\%%)$'%z, size=30)
+ax.set_xlim(pl_win[1])
+ax.set_ylim(pl_win[0])
+#grid lines
+gl = ax.gridlines(crs=data_crs, draw_labels=True,
+                  linewidth=1, color='gray', alpha=0.5, linestyle='--')
+gl.xlabels_top = False
+gl.ylabels_right = False
+gl.xlabel_style = {'size': 28}
+gl.ylabel_style = {'size': 28}
+#save figure
+fig.tight_layout()
+fig.savefig( dir_fig + fname_fig_main + fname_fig + '.png', bbox_inches='tight')
+
 
