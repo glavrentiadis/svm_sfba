@@ -3,7 +3,8 @@
 ## Description
 
 This repository contains the regression scripts, model implementation, and data for the Sedimentary Velocity Model for the San Francisco Bay Area described in: 
-Lavrentiadis, G., Seylabi, E., Xia, F., Tehrani, H., Asimaki, D., & McCallen, D. (Under Review) Enhancing Near-Surface Velocity Characterization in the San Francisco Bay Area: A Stationary and Spatially Varying Approach. *Earthquake Spectra*
+Lavrentiadis, G., Seylabi, E., Xia, F., Tehrani, H., Asimaki, D., & McCallen, D. (Under Review) 
+Data-driven Characterization of Near-Surface Velocity in the San Francisco Bay Area: A Stationary and Spatially Varying Approach. *Earthquake Spectra*
 
 An open-access version of the manuscript can be found in [arXiv](https://arxiv.org/abs/2409.18856).
 
@@ -50,10 +51,12 @@ The ``Raw_files`` includes project files in raw format.
 
 ## Collaborators
  - Grigorios Lavrentiadis -- Postdoctoral Associate, California Institute of Technology
- - Feiruo Xia -- Ph.D. Candidate, California Institute of Technology
  - Elnaz Esmaeilzadeh Seylabi -- Assistant Professor, University of Nevada Reno
+ - Feiruo Xia -- Ph.D. Candidate, California Institute of Technology
+ - Hesam Tehrani -- Ph.D. Candidate, University of Nevada Reno
  - Domniki Asimaki -- Professor, California Institute of Technology
  - David McCallen -- Earth Senior Scientist, Lawrence Berkeley National Laboratory
 
 ## Acknowledgments 
-The financial support from the United States Geological Survey (contract numbers: G21AP10518 and G21AP10448) is greatly acknowledged.
+This material is based upon work supported by the U.S. Geological Survey under Grant No. G21AP10518 and G21AP10448.
+The views and conclusions contained in this paper are those of the authors and should not be interpreted as representing the opinions or policies of the U.S. Geological Survey. Mention of trade names or commercial products does not constitute their endorsement by the U.S. Geological Survey.
