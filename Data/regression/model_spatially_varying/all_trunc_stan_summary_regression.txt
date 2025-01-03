@@ -1,0 +1,4 @@
+Total Residuals Mean: 0.02
+Total Residuals Std Dev: 0.31
+Within-profile Residuals Mean: 0.00
+Within-profile Residuals Std Dev: 0.28

@@ -1,0 +1,2 @@
+Total Residuals Mean: 0.01
+Total Residuals Std Dev: 0.38

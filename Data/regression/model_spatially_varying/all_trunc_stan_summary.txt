@@ -1,0 +1,15 @@
+CmdStanMCMC: model=glob_reg_model_spatially_varying chains=6['method=sample', 'num_samples=50000', 'num_warmup=50000', 'algorithm=hmc', 'engine=nuts', 'max_depth=10', 'adapt', 'engaged=1', 'delta=0.8']
+ csv_files:
+	/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Data/regression/model_spatially_varying/stan_fit/glob_reg_model_spatially_varying-20240707154543_1.csv
+	/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Data/regression/model_spatially_varying/stan_fit/glob_reg_model_spatially_varying-20240707154543_2.csv
+	/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Data/regression/model_spatially_varying/stan_fit/glob_reg_model_spatially_varying-20240707154543_3.csv
+	/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Data/regression/model_spatially_varying/stan_fit/glob_reg_model_spatially_varying-20240707154543_4.csv
+	/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Data/regression/model_spatially_varying/stan_fit/glob_reg_model_spatially_varying-20240707154543_5.csv
+	/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Data/regression/model_spatially_varying/stan_fit/glob_reg_model_spatially_varying-20240707154543_6.csv
+ output_files:
+	/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Data/regression/model_spatially_varying/stan_fit/glob_reg_model_spatially_varying-20240707154543_0-stdout.txt
+	/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Data/regression/model_spatially_varying/stan_fit/glob_reg_model_spatially_varying-20240707154543_1-stdout.txt
+	/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Data/regression/model_spatially_varying/stan_fit/glob_reg_model_spatially_varying-20240707154543_2-stdout.txt
+	/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Data/regression/model_spatially_varying/stan_fit/glob_reg_model_spatially_varying-20240707154543_3-stdout.txt
+	/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Data/regression/model_spatially_varying/stan_fit/glob_reg_model_spatially_varying-20240707154543_4-stdout.txt
+	/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Data/regression/model_spatially_varying/stan_fit/glob_reg_model_spatially_varying-20240707154543_5-stdout.txt
