@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Jul  6 15:09:21 2024
+Created on Sat Jan 11 18:06:14 2025
 
 @author: glavrent
 """
+
 
 #load libraries
 import os
@@ -12,8 +13,10 @@ import pathlib
 import sys
 #arithmetic libraries
 import numpy  as np
-import pandas as pd
 from scipy import interpolate as interp
+#dataframe libraries
+import pandas as pd
+import geopandas as gpd
 #ploting libraries
 import matplotlib.pyplot as plt
 #user functions
@@ -23,6 +26,8 @@ sys.path.insert(0,'../python_lib/plotting')
 sys.path.insert(0,'../implementation')
 sys.path.insert(0,'../miscellaneous')
 sys.path.insert(0,'../python_lib/usgs')
+#vs30 map
+from query_willis15_ca_vs30_map import Willis15Vs30CA as willis15vs30
 #usgs vel model
 from query_usgs_v21 import USGSVelModelv21 as velmodel_usgs
 #velocity model
@@ -50,23 +55,38 @@ def ExpKernel(loc_array, omega, ell, delta=0.001):
     
     return cov_mat, chol_mat
 
+def logmean(data):
+    
+    data = data[data>0]
+    
+    return np.exp( np.mean( np.log(data) ) )
+
+def logstd(data):
+
+    data = data[data>0]
+    
+    return np.std( np.log(data) )
+
 #%% Define Variables
 ### ======================================
 #depth increment
 dz = .5
 #number of spatially-varying realizations 
-n_realiz_svar  = 10
+n_realiz_svar  = 0
 #number of along-depth realizations
-n_realiz_depth = 25
+n_realiz_depth = 5
 
-#outliers velocity profiles
+#vs30 input option
+#   flag_vs30 = 1: use profile's vs30 values
+#   flag_vs30 = 2: use wills 15 vs30 values
+flag_vs30 = 2
+
+#
+flag_legend = False
+
+#profile outliers
 out_ds_id  = np.array([1, 3])
 out_vel_id = np.array([6, 69])
-
-#add common halfspace
-flag_common_halfspace = False
-#half space velocities
-vs_half_discrete = np.array([100, 200, 300, 500, 750, 1000, 1500, 2000, 2500, 3000])
 
 #original profiles
 fname_prof_flatfile = '../../Data/vel_profiles_dataset/all_velocity_profles.csv'
@@ -85,8 +105,11 @@ fname_dcparam_model_svar = '../../Data/regression/along_depth_correlation/model_
 dir_usgs   = '/mnt/halcloud_nfs/glavrent/Research/GP_Vel_profiles/Raw_files/vel_model/USGS_SFB_vel_model/'
 fname_usgs = 'USGS_SFCVM_v21-1_detailed.h5'
 
+#bay area region
+fn_regions = '../../Data/gis/regions_vel_model.shp'
+
 #output directories
-dir_out = '../../Data/site_reponse/vel_profs/'
+dir_out = '../../Data/misc/examp_profs_regions/'
 dir_fig = dir_out + 'figures/'
 
 
@@ -107,22 +130,52 @@ df_model_svar_dcparam = pd.read_csv(fname_dcparam_model_svar, index_col=0)
 df_model_stat_param = pd.read_csv(fname_param_model_stat)
 df_model_svar_param = pd.read_csv(fname_param_model_svar)
 
-#profile information
+#read regions' geometry
+df_regions = gpd.read_file(fn_regions)
+df_regions.rename(columns={'id':'RegID','abbrev':'RegAbbrev','name':'RegName'}, 
+                  inplace=True)
+
+#%% Processing
+### ======================================
+#gather profile information
 df_prof_info =  df_model_stat_param.loc[:,['DSID','VelID','DSName','VelName',
                                            'Lon','Lat','X','Y',
                                            'Vs30','Z_max']]
 df_prof_info.rename(columns={'Z_max':'Zmax'}, inplace=True)
 
-#identify outlier profiles
-out_vel = ~np.any([np.logical_and(df_prof_info.DSID==d_id, df_prof_info.VelID==v_id).values 
-                   for d_id, v_id in zip(out_ds_id, out_vel_id)], axis=0)
+
+#identify profiles to plot
+if len(out_vel_id):
+    idx_vel2keep = ~np.any([np.logical_and(df_prof_info.DSID==d_id, df_prof_info.VelID==v_id).values 
+                            for d_id, v_id in zip(out_ds_id, out_vel_id)], axis=0)
+else:
+    idx_vel2keep =  np.full(len(df_prof_info), True, dtype=bool)
 
 #drop outlier profiles
-df_prof_info = df_prof_info.loc[out_vel,:].reset_index(drop=True)
+df_prof_info = df_prof_info.loc[idx_vel2keep,:].reset_index(drop=True)
 
 
-#%% Evaluate Models
-### ======================================
+#convert profile info to geopanads
+df_prof_info = gpd.GeoDataFrame(df_prof_info,
+                                geometry=gpd.points_from_xy(df_prof_info.Lon.values,
+                                                            df_prof_info.Lat.values, 
+                                                            crs=df_regions.crs))
+
+
+#remove profiles outside the region
+df_prof_info = gpd.sjoin(df_prof_info, df_regions, how="inner", predicate="within")
+df_prof_info.reset_index(drop=True, inplace=True)
+
+#re-organize columns
+df_prof_info = df_prof_info[['DSID', 'VelID','RegID',
+                             'DSName', 'VelName', 'RegName',
+                             'Lon', 'Lat', 'X', 'Y', 'geometry',
+                             'Zmax', 'Vs30']]
+
+# Evaluate Velocity Models
+# -----------------------------
+# Initialization
+# ---   ---   ---   ---   ---
 #initialize statinoary and spatially varying models
 model_vel_stat = velmodel_stat(fname_hparam=fname_hypparam_model_stat)
 model_vel_svar_cnd = velmodel_svar(fname_hparam=fname_hypparam_model_svar, fname_dBr=fname_param_model_svar)
@@ -130,6 +183,19 @@ model_vel_svar_cnd = velmodel_svar(fname_hparam=fname_hypparam_model_svar, fname
 #initalize usgs model
 model_vel_usgs = velmodel_usgs(dir_usgs, fname_usgs )
 
+# Compute Vs30
+# -----------------------------
+#initiallize wills model
+model_w15ca_vs30 = willis15vs30()
+
+#read median vs30
+df_prof_info.loc[:,'Vs30Wills15'], _ = model_w15ca_vs30.lookup( df_prof_info[['Lon','Lat']].values )
+
+df_prof_info.loc[:,'Vs30USGS'] = [model_vel_usgs.GetVs30(latlon) 
+                                  for latlon in  df_prof_info[['Lat','Lon']].values]
+
+# Evaluate Velocity Profiles
+# -----------------------------
 #model parameters
 #stationary model
 model_stat_sig = df_model_stat_hparam.loc['mean','sigma_vel']
@@ -152,31 +218,37 @@ res_svar_all = list()
 
 #column names for random realizations
 cn_stat_realiz_dvar = ['Vs_drlz%i'%(l+1) for l in range(n_realiz_depth)]
-cn_svar_realiz_mean = ['Vs_srlz%i'%(j+1) for j in range(n_realiz_svar)]
-cn_svar_realiz_dvar = [['Vs_srlz%i_drlz%i'%(j+1,l+1) for j in range(n_realiz_svar)] for l in range(n_realiz_depth)]
+cn_svar_realiz_mean = ['Vs_srlz%i'%(j+1) for j in range( max(n_realiz_svar,1) )]
+cn_svar_realiz_dvar = [['Vs_srlz%i_drlz%i'%(j+1,l+1) for j in range( max(n_realiz_svar,1) )] for l in range(n_realiz_depth)]
 cn_svar_realiz_dvar = sum(cn_svar_realiz_dvar,[])
 
-#initialize columns
-df_prof_info.loc[:,'Dt']     = np.nan
-df_prof_info.loc[:,'VsAvg'] = np.nan
-
 #iterate over profiles
+print('Grenerate profiles ...')
 for k, vprof_info in df_prof_info.iterrows():
-    print('process velocity profile: %s, %s (%i of %i) ...'%(vprof_info.DSName,vprof_info.VelName,k+1,len(df_prof_info)))
+    print(f'\tvelocity profile: %s, %s (%i of %i) ...'%(vprof_info.DSName,vprof_info.VelName,k+1,len(df_prof_info)))
 
     #profile information
     #dataset and profile ids
+    vropf_regid   = vprof_info.RegID
     vprof_dsid    = vprof_info.DSID
     vprof_velid   = vprof_info.VelID
-    #dataset and profile names
+    #dataset region and profile names
+    vprof_regname = vprof_info.RegName
     vprof_dsname  = vprof_info.DSName
     vprof_velname = vprof_info.VelName
     #parametrization
-    vprof_vs30   = vprof_info.Vs30
+    #vs30 value
+    if   flag_vs30 == 1: vprof_vs30 = vprof_info.Vs30
+    elif flag_vs30 == 2: vprof_vs30 = vprof_info.Vs30Wills15
+    elif flag_vs30 == 3: vprof_vs30 = vprof_info.Vs30USGS
+    #adjustment for offshore profiles
+    if  vprof_vs30 <= 0: vprof_vs30 = vprof_info.Vs30    
+    #profile location
     vprof_latlon = vprof_info[['Lat','Lon']].values
     
     #define filename
-    df_prof_info.loc[k,'VelFName'] = '%i-%i_%s_%s'%(vprof_dsid, vprof_velid, vprof_dsname, vprof_velname)
+    df_prof_info.loc[k,'VelFName'] = '%i-%s_%i-%i_%s_%s'%(vropf_regid, vprof_regname, 
+                                                          vprof_dsid, vprof_velid, vprof_dsname, vprof_velname)
         
     #indices stationary and spatially varying profiles
     idx_stat = np.logical_and(df_model_stat_param.DSID==vprof_info.DSID, df_model_stat_param.VelID==vprof_info.VelID)
@@ -222,8 +294,8 @@ for k, vprof_info in df_prof_info.iterrows():
     vs_array_stat = model_vel_stat.Vs(vprof_vs30, z_array)[0].flatten()
     #stationaly model - along depth correlation
     var_stat_drzl = np.random.multivariate_normal(np.zeros(z_array.shape), cmat_stat, n_realiz_depth).T
+    var_stat_drzl = var_stat_drzl.reshape(-1, 1) if n_realiz_depth == 0 else var_stat_drzl
     vs_array_stat_drzl = vs_array_stat[:,np.newaxis] * np.exp( var_stat_drzl )
-
     
     #spatially vayring model
     #create covariance matrix
@@ -232,49 +304,25 @@ for k, vprof_info in df_prof_info.iterrows():
     #spatially vayring model - mean
     vs_array_svar = model_vel_svar_cnd.Vs(vprof_vs30, z_array, latlon=vprof_latlon)[0].flatten()
     vs_array_svar_rlz = model_vel_svar_cnd.Vs(vprof_vs30, z_array, latlon=vprof_latlon, n_realiz=n_realiz_svar)[0].squeeze()
-    #stationaly model - along depth correlation
+    vs_array_svar_rlz = vs_array_svar_rlz.reshape(-1, 1) if n_realiz_svar == 0 else vs_array_svar_rlz
+    #spatially vayring model - along depth correlation
     var_svar_drzl = np.random.multivariate_normal(np.zeros(z_array.shape), cmat_svar, n_realiz_depth).T
-    vs_array_svar_rlz_drzl = [vs_array_svar_rlz[:,j][:,np.newaxis] * np.exp( var_svar_drzl ) for j in range(n_realiz_svar)]
+    var_svar_drzl = var_svar_drzl.reshape(-1, 1) if n_realiz_depth == 0 else var_svar_drzl
+    vs_array_svar_rlz_drzl = [vs_array_svar_rlz[:,j][:,np.newaxis] * np.exp( var_svar_drzl ) 
+                              for j in range( max(n_realiz_svar,1) )]
     vs_array_svar_rlz_drzl = np.hstack(vs_array_svar_rlz_drzl)
 
-    #define half-space
-    if flag_common_halfspace:
-        #halfspace depth
-        z_halfspace  = vprof_info.Zmax
-        #empirical profile half space
-        vs_halfspace = df_vel_prof.loc[i_vprof,'Vs'].values[-1]
-        #largest half-space value
-        vs_halfspace = np.max([vs_array_emp[-1], 
-                               vs_array_stat[-1], vs_array_stat_drzl[-1,:].max(),
-                               vs_array_svar[-1], vs_array_svar_rlz[-1,:].max(), vs_array_svar_rlz_drzl[-1,:].max(), 
-                               vs_array_usgs[-1]])
-        #discrete halfspace
-        vs_halfspace = vs_half_discrete[np.argmax(vs_halfspace <= vs_half_discrete)]
-
-    #summarize velocity proifles
-    if not flag_common_halfspace:
-        #without half-space
-        vprof_emp  = pd.DataFrame({'z':z_array,'Vs':vs_array_emp})
-        vprof_usgs = pd.DataFrame({'z':z_array,'Vs':vs_array_usgs})
-        vprof_stat = pd.DataFrame({'z':z_array,'Vs':vs_array_stat})
-        vprof_svar = pd.DataFrame({'z':z_array,'Vs':vs_array_svar})
-        #add random realizations (slope)
-        vprof_svar.loc[:,cn_svar_realiz_mean] = vs_array_svar_rlz
-        #add random realizations (along-depth)
-        vprof_stat.loc[:,cn_stat_realiz_dvar] = vs_array_stat_drzl
-        vprof_svar.loc[:,cn_svar_realiz_dvar] = vs_array_svar_rlz_drzl        
-    else:
-        #with half-space
-        vprof_emp  = pd.DataFrame({'z':np.append(z_array, z_halfspace),'Vs':np.append(vs_array_emp,  vs_halfspace)})
-        vprof_usgs = pd.DataFrame({'z':np.append(z_array, z_halfspace),'Vs':np.append(vs_array_usgs, vs_halfspace)})
-        vprof_stat = pd.DataFrame({'z':np.append(z_array, z_halfspace),'Vs':np.append(vs_array_stat, vs_halfspace)})
-        vprof_svar = pd.DataFrame({'z':np.append(z_array, z_halfspace),'Vs':np.append(vs_array_svar, vs_halfspace)})
-        #add random realizations  (slope)   
-        vprof_svar.loc[:,cn_svar_realiz_mean] = np.append(vs_array_svar_rlz, np.full((1,n_realiz_svar),vs_halfspace), axis=0)
-        #add random realizations (along-depth)
-        vprof_stat.loc[:,cn_stat_realiz_dvar] = np.append(vs_array_stat_drzl,     np.full((1,n_realiz_depth),              vs_halfspace), axis=0)
-        vprof_svar.loc[:,cn_svar_realiz_dvar] = np.append(vs_array_svar_rlz_drzl, np.full((1,n_realiz_svar*n_realiz_depth),vs_halfspace), axis=0)
-
+    #summarize velocity proifles (without half-space)
+    vprof_emp  = pd.DataFrame({'z':z_array,'Vs':vs_array_emp})
+    vprof_usgs = pd.DataFrame({'z':z_array,'Vs':vs_array_usgs})
+    vprof_stat = pd.DataFrame({'z':z_array,'Vs':vs_array_stat})
+    vprof_svar = pd.DataFrame({'z':z_array,'Vs':vs_array_svar})
+    #add random realizations (slope)
+    vprof_svar.loc[:,cn_svar_realiz_mean] = vs_array_svar_rlz
+    #add random realizations (along-depth)
+    vprof_stat.loc[:,cn_stat_realiz_dvar] = vs_array_stat_drzl
+    vprof_svar.loc[:,cn_svar_realiz_dvar] = vs_array_svar_rlz_drzl        
+    
     #store velocity profiles
     vprof_emp_all.append(vprof_emp)
     vprof_usgs_all.append(vprof_usgs)
@@ -284,30 +332,41 @@ for k, vprof_info in df_prof_info.iterrows():
     res_usgs_all.append(np.log(vprof_usgs.Vs) - np.log(vprof_emp.Vs))
     res_stat_all.append(np.log(vprof_stat.Vs) - np.log(vprof_emp.Vs))
     res_svar_all.append(np.log(vprof_svar.Vs) - np.log(vprof_emp.Vs))
+
+# Summarize Regions 
+# -----------------------------
+print('Summarize regions ...')
+for k, reg_info in df_regions.iterrows():
+    print(f'\region: %s (%i of %i) ...'%(reg_info.RegName,k+1,len(df_regions)))
+
+    #identify profiles within region
+    i_prof_reg = reg_info.RegID == df_prof_info.RegID.values
+
+    #number of profiles
+    n_profs = np.sum( i_prof_reg )
+    #vs30 statistics 
+    vreg_vs30data_mu    = logmean( df_prof_info.loc[i_prof_reg,'Vs30'].values )
+    vreg_vs30data_sd    = logstd( df_prof_info.loc[i_prof_reg,'Vs30'].values )
+    vreg_vs30wills15_mu = logmean( df_prof_info.loc[i_prof_reg,'Vs30Wills15'].values )
+    vreg_vs30wills15_sd = logstd( df_prof_info.loc[i_prof_reg,'Vs30Wills15'].values )
+    vreg_vs30usgs_mu    = logmean( df_prof_info.loc[i_prof_reg,'Vs30USGS'].values )
+    vreg_vs30usgs_sd    = logstd( df_prof_info.loc[i_prof_reg,'Vs30USGS'].values )
     
-    
-df_prof_info.loc[:,'fp'] = 1/(4*df_prof_info.Dt)
-#re-arange columns in 
-df_prof_info = df_prof_info.loc[:,['DSID','VelID','DSName','VelName','VelFName',
-                                   'Lon','Lat','X','Y',
-                                   'Vs30','VsAvg','Dt','fp','Zmax']]
+    #number of profiles
+    df_regions.loc[k,'NoProfs'] = n_profs
+    #vs30 summary
+    df_regions.loc[k,['Vs30mu','Vs30sd']]               = [vreg_vs30data_mu, vreg_vs30data_sd] 
+    df_regions.loc[k,['Vs30Wills15mu','Vs30Wills15sd']] = [vreg_vs30wills15_mu, vreg_vs30wills15_sd]
+    df_regions.loc[k,['Vs30USGSmu','Vs30USGSsd']]       = [vreg_vs30usgs_mu, vreg_vs30usgs_sd]
 
 
 #%% Save Profiles
 ### ======================================
 if not os.path.isdir(dir_out): pathlib.Path(dir_out).mkdir(parents=True, exist_ok=True)
 
-#report minimum frequency
-print("Frequency range\n\tMinimum: %.2f\n\tAverage: %.2f\n\tMaximum: %.2f"%( 1/(4*df_prof_info.Dt.max()), 
-                                                                             1/(4*df_prof_info.Dt.mean()),
-                                                                             1/(4*df_prof_info.Dt.min()) ) )
-#report residuals std
-print("Velocity Profile RMSE\n\tUSGS: %.2f\n\tSTAT: %.2f\n\tSVAR: %.2f"%(np.sqrt(np.mean(np.concatenate(res_usgs_all)**2)), 
-                                                                         np.sqrt(np.mean(np.concatenate(res_stat_all)**2)),
-                                                                         np.sqrt(np.mean(np.concatenate(res_svar_all)**2))))
-
-#velocity profile information
-df_prof_info.to_csv(dir_out + 'profile_info'  + '.csv', index=False)
+#summarize regional velocity profiles
+fn_reg_info = 'region_information'
+df_regions.drop(columns='geometry').to_csv(dir_out + fn_reg_info + '.csv', index=False)
 
 #iterate over profiles
 for k, vprof_info in df_prof_info.iterrows():
@@ -319,7 +378,7 @@ for k, vprof_info in df_prof_info.iterrows():
     vprof_usgs_all[k].to_csv(dir_out + fn_vprof_main + '_usgs' + '.csv', index=False)
     vprof_stat_all[k].to_csv(dir_out + fn_vprof_main + '_stat' + '.csv', index=False)
     vprof_svar_all[k].to_csv(dir_out + fn_vprof_main + '_svar' + '.csv', index=False)
-
+    
 
 #%% Plotting
 ### ======================================
@@ -329,20 +388,27 @@ for k, vprof_info in df_prof_info.iterrows():
     #profile information
     fn_vprof_main = vprof_info.VelFName
 
-    #create figure - mean profiles
+    #create figure - with random realizations
     fig, ax = plt.subplots(figsize = (10,10))
     #plot median profiles
     hl_emp  = ax.step(vprof_emp_all[k].Vs,  vprof_emp_all[k].z,  linewidth=3.0, color='black', zorder=3, label='Velocity Profile')
-    hl_usgs = ax.plot(vprof_usgs_all[k].Vs, vprof_usgs_all[k].z, linewidth=3.0, color='black', zorder=2, linestyle='dashed', label=r'USGS SFBA Model')
-    hl_stat = ax.plot(vprof_stat_all[k].Vs, vprof_stat_all[k].z, linewidth=3.0, color='C1', zorder=1, label=f'Stationary Model')
-    hl_svar = ax.plot(vprof_svar_all[k].Vs, vprof_svar_all[k].z, linewidth=3.0, color='C0', zorder=1, label=f'Spatially Varying Model\n(Μean)')
-    #plot random realizations
-    hl_svar_realiz = ax.plot(vprof_svar_all[k].loc[:,cn_svar_realiz_mean], vprof_svar_all[k].z, linewidth=.5, color='C0', zorder=0, label=f'Spatially Varying Model\n(Uncertainty)')
+    hl_usgs = ax.plot(vprof_usgs_all[k].Vs, vprof_usgs_all[k].z, linewidth=3.0, color='black', zorder=2, linestyle='dashed', label='USGS SFBA')
+    hl_stat = ax.plot(vprof_stat_all[k].Vs, vprof_stat_all[k].z, linewidth=3.0, color='C1', zorder=1, label='Stationary')
+    hl_svar = ax.plot(vprof_svar_all[k].Vs, vprof_svar_all[k].z, linewidth=3.0, color='C0', zorder=1, label='Spatially Varying')
+    #plot spatially varying slope realizations
+    # hl_svar_realiz = ax.plot(vprof_svar_all[k].loc[:,cn_svar_realiz_mean], vprof_svar_all[k].z, linewidth=.5, color='C0', zorder=0, label=f'Spatially Varying Model\n(Uncertainty)')
+    #plot stationary with along-depth random realizations
+    hl_stat_drlz = ax.plot(vprof_stat_all[k].loc[:,cn_stat_realiz_dvar], vprof_stat_all[k].z, linewidth=0.5, color=hl_stat[0].get_color(), linestyle='dashed', zorder=0, 
+                           label=r'Stationary Model\n(Random Realizations)')
+    #plot spatially varying wiht along-depth random realizations
+    hl_svar_drlz = ax.plot(vprof_svar_all[k].loc[:,cn_svar_realiz_dvar], vprof_stat_all[k].z, linewidth=0.5, color=hl_svar[0].get_color(), linestyle='dashed', zorder=0, 
+                           label=r'Spatially Varying Model\n(Random Realizations)')
     #edit properties
     ax.set_xlabel('$V_S$ (m/sec)',  fontsize=30)
     ax.set_ylabel('Depth (m)',      fontsize=30)
     ax.grid(which='both')
-    ax.legend(handles=hl_emp+hl_usgs+hl_stat+hl_svar+[hl_svar_realiz[0]], loc='upper right', fontsize=30)
+    # ax.legend(handles=hl_emp+hl_usgs+hl_stat+hl_svar+[hl_svar_realiz[0]], loc='upper right', fontsize=30)
+    if flag_legend: ax.legend(handles=hl_emp+hl_usgs+hl_stat+hl_svar, loc='lower right', fontsize=30)
     ax.tick_params(axis='x', labelsize=28)
     ax.tick_params(axis='y', labelsize=28)
     ax.xaxis.set_tick_params(which='major', size=10, width=2, direction='in', top='on')
@@ -352,51 +418,5 @@ for k, vprof_info in df_prof_info.iterrows():
     ax.invert_yaxis()
     fig.tight_layout()
     #save figure
-    fig.savefig( dir_fig + fn_vprof_main + '_mean' + '.png' )
-    
-    #create figure - stationary model
-    fig, ax = plt.subplots(figsize = (10,10))
-    #plot median profiles
-    hl_emp  = ax.step(vprof_emp_all[k].Vs, vprof_emp_all[k].z, linewidth=3.0, color='black', linestyle='solid', zorder=3, label='Velocity Profile')
-    hl_stat_mean = ax.plot(vprof_stat_all[k].Vs, vprof_stat_all[k].z, linewidth=3.0,  color='C1', linestyle='solid', zorder=1, label=f'Stationary Model\n(Mean)')
-    #plot along-depth random realizations
-    hl_stat_drlz = ax.plot(vprof_stat_all[k].loc[:,cn_stat_realiz_dvar], vprof_stat_all[k].z, linewidth=0.5, color='gray', linestyle='dashed', zorder=0, label=f'Stationary Model\n(Random Realizations)')
-    #edit properties
-    ax.set_xlabel('$V_S$ (m/sec)',  fontsize=30)
-    ax.set_ylabel('Depth (m)',      fontsize=30)
-    ax.grid(which='both')
-    ax.legend(handles=hl_emp+hl_stat_mean+[hl_stat_drlz[0]], loc='lower left', fontsize=30)
-    ax.tick_params(axis='x', labelsize=28)
-    ax.tick_params(axis='y', labelsize=28)
-    ax.xaxis.set_tick_params(which='major', size=10, width=2, direction='in', top='on')
-    ax.yaxis.set_tick_params(which='major', size=10, width=2, direction='in', right='on')
-    ax.set_xlim([0, 2500])
-    ax.set_ylim([0, 150])
-    ax.invert_yaxis()
-    fig.tight_layout()
-    #save figure
-    fig.savefig( dir_fig + fn_vprof_main + '_stat' + '.png' )
-    
-    #create figure - spatially model
-    fig, ax = plt.subplots(figsize = (10,10))
-    #plot median profiles
-    hl_emp  = ax.step(vprof_emp_all[k].Vs, vprof_emp_all[k].z, linewidth=3.0, color='black', linestyle='solid', zorder=3, label='Velocity Profile')
-    hl_svar_mean = ax.plot(vprof_svar_all[k].Vs, vprof_svar_all[k].z, linewidth=3.0,  color='C0', linestyle='solid', zorder=1, label=f'Spatially Varying Model\n(Mean)')
-    #plot along-depth random realizations
-    hl_svar_drlz = ax.plot(vprof_svar_all[k].loc[:,cn_svar_realiz_dvar], vprof_stat_all[k].z, linewidth=0.5, color='gray', linestyle='dashed', zorder=0, label=f'Spatially Varying Model\n(Random Realizations)')
-    #edit properties
-    ax.set_xlabel('$V_S$ (m/sec)',  fontsize=30)
-    ax.set_ylabel('Depth (m)',      fontsize=30)
-    ax.grid(which='both')
-    ax.legend(handles=hl_emp+hl_svar_mean+[hl_svar_drlz[0]], loc='lower left', fontsize=30)
-    ax.tick_params(axis='x', labelsize=28)
-    ax.tick_params(axis='y', labelsize=28)
-    ax.xaxis.set_tick_params(which='major', size=10, width=2, direction='in', top='on')
-    ax.yaxis.set_tick_params(which='major', size=10, width=2, direction='in', right='on')
-    ax.set_xlim([0, 2500])
-    ax.set_ylim([0, 150])
-    ax.invert_yaxis()
-    fig.tight_layout()
-    #save figure
-    fig.savefig( dir_fig + fn_vprof_main + '_svar' + '.png' )
+    fig.savefig( dir_fig + fn_vprof_main + '.png' )
     

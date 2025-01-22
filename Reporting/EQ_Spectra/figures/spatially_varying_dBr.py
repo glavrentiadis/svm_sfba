@@ -31,7 +31,7 @@ fn_svar_params = '../../../Data/regression/model_spatially_varying/all_trunc_sta
 #output filename
 fname_out_main = 'svarying_model'
 
-#
+#output directory
 dir_fig = ''
 
 #%% Load Data
@@ -42,9 +42,6 @@ df_svar_params = pd.read_csv(fn_svar_params)
 
 #%% Plotting
 ### ======================================
-#
-
-
 # Spatial variability
 # ---------------------------
 # pl_win = [[36, 39], [-124, -121]]
@@ -65,8 +62,8 @@ ax.set_ylim(pl_win[0])
 #grid lines
 gl = ax.gridlines(crs=data_crs, draw_labels=True,
                   linewidth=1, color='gray', alpha=0.5, linestyle='--')
-gl.xlabels_top = False
-gl.ylabels_right = False
+gl.xlabels_top, gl.top_labels = False, False
+gl.ylabels_right, gl.right_labels = False, False
 gl.xlabel_style = {'size': 28}
 gl.ylabel_style = {'size': 28}
 #save figure
@@ -75,9 +72,10 @@ fig.savefig( dir_fig + fname_fig + '.png' )
 
 #std delta B r
 data2plot = df_svar_params[['Lat','Lon','param_dBr_std']].values
+data2plot[:,2] = np.clip(data2plot[:,2], .0, .3)
 
 fname_fig =  (fname_out_main + '_locations_param_dBr_std').replace(' ','_')
-fig, ax, cbar, data_crs, gl = pycplt.PlotScatterCAMap(data2plot, cmin=0,  cmax=.50, flag_grid=False, 
+fig, ax, cbar, data_crs, gl = pycplt.PlotScatterCAMap(data2plot, cmin=0,  cmax=.3, flag_grid=False, 
                                                       title=None, cbar_label='', log_cbar = False, 
                                                       frmt_clb = '%.2f', alpha_v = 0.7, cmap='Wistia', marker_size=70.)
 #edit figure properties
@@ -88,8 +86,32 @@ ax.set_ylim(pl_win[0])
 #grid lines
 gl = ax.gridlines(crs=data_crs, draw_labels=True,
                   linewidth=1, color='gray', alpha=0.5, linestyle='--')
-gl.xlabels_top = False
-gl.ylabels_right = False
+gl.xlabels_top, gl.top_labels = False, False
+gl.ylabels_right, gl.right_labels = False, False
+gl.xlabel_style = {'size': 28}
+gl.ylabel_style = {'size': 28}
+#save figure
+fig.tight_layout()
+fig.savefig( dir_fig + fname_fig + '.png' )
+
+#std delta B r
+data2plot = df_svar_params[['Lat','Lon','param_dBr_std']].values
+data2plot[:,2] = np.clip(data2plot[:,2], .1, .3)
+
+fname_fig =  (fname_out_main + '_locations_param_dBr_std_zoomed').replace(' ','_')
+fig, ax, cbar, data_crs, gl = pycplt.PlotScatterCAMap(data2plot, cmin=.1,  cmax=.3, flag_grid=False, 
+                                                      title=None, cbar_label='', log_cbar = False, 
+                                                      frmt_clb = '%.2f', alpha_v = 0.7, cmap='Wistia', marker_size=70.)
+#edit figure properties
+cbar.ax.tick_params(labelsize=28)
+cbar.set_label(r'Standard Deviation: $\delta B_r$', size=30)
+ax.set_xlim(pl_win[1])
+ax.set_ylim(pl_win[0])
+#grid lines
+gl = ax.gridlines(crs=data_crs, draw_labels=True,
+                  linewidth=1, color='gray', alpha=0.5, linestyle='--')
+gl.xlabels_top, gl.top_labels = False, False
+gl.ylabels_right, gl.right_labels = False, False
 gl.xlabel_style = {'size': 28}
 gl.ylabel_style = {'size': 28}
 #save figure

@@ -142,9 +142,9 @@ class USGSVelModelv21:
         z_res  = np.array([-500.,-3000.,-3500.,-10000.])
         dz_res = np.array([25,50,100,200])    
     
-       #surface elevation
+        #surface elevation
         elev_surf = self.QuerySurf(latlong)
-
+        
         #profile elev query
         if not dz is None:
             if z_min is None: z_min = np.min(z_res)
@@ -162,13 +162,12 @@ class USGSVelModelv21:
             elev_q = np.insert(elev_q, 0, elev_surf) #add surface
             elev_q = np.append(elev_q,z_res[-1])     #append last point
       
-        return self.QueryZ(latlong, elev_q)
+        return self.QueryElev(latlong, elev_q)
     
     def Depth2Vel(self, vel_thres, latlon):
     #returns the depth to vel
-    
         #query velocity model
-        latlon, elev_s, vel_prof = self.Query(latlon)
+        latlon, elev_s, vel_prof = self.QueryProf(latlon)
 
         #id of layer crossing the threshold vs
         zid2vel = np.where(vel_prof.Vs >= vel_thres)[0][0]
@@ -201,7 +200,7 @@ class USGSVelModelv21:
     #returns the vs30 of the velocity profile
     
         #query velocity model
-        latlon, elev_s, vel_prof = self.Query(latlon)
+        latlon, elev_s, vel_prof = self.QueryProf(latlon)
         
         return self.VelprofCalcVs30(vel_prof)
     
