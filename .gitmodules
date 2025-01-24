@@ -5,7 +5,7 @@
 	path = Reporting/Notes_Implementation/overleaf
 	url = https://git@git.overleaf.com/6778812f6ac902e68ac1aa0d
 [submodule "Reporting/EQ_Spectra/overleaf_orig"]
-	path = Reporting/EQ_Spectra/overleaf_manuscript_orig/
+	path = Reporting/EQ_Spectra/overleaf_manuscript_orig
 	url = https://git@git.overleaf.com/6777113fcf924378a3e9aac1
 [submodule "Reporting/EQ_Spectra/overleaf_comment_response"]
 	path = Reporting/EQ_Spectra/overleaf_comment_response
