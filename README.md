@@ -3,7 +3,7 @@
 ## Description
 
 This repository contains the regression scripts, model implementation, and data for the Sedimentary Velocity Model for the San Francisco Bay Area described in: 
-Lavrentiadis G, Seylabi E, Xia F, Tehrani H, Asimaki D, McCallen D. Data-driven characterization of near-surface velocity in the San Francisco Bay Area: A stationary and spatially varying approach. Earthquake Spectra. 2025 doi:10.1177/87552930251320666
+[Lavrentiadis G, Seylabi E, Xia F, Tehrani H, Asimaki D, McCallen D. Data-driven characterization of near-surface velocity in the San Francisco Bay Area: A stationary and spatially varying approach. Earthquake Spectra. 2025 doi:10.1177/87552930251320666](https://journals.sagepub.com/doi/abs/10.1177/87552930251320666)
 
 An open-access version of the manuscript can be found in [arXiv](https://arxiv.org/abs/2409.18856).
 
